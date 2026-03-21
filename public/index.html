@@ -576,6 +576,46 @@ body {
 .sort-btn:hover { color: var(--t0); border-color: var(--t3); }
 .sort-btn.on { color: var(--blu); border-color: rgba(96,165,250,.4); background: var(--blud); }
 
+
+/* scan panel */
+.scan-panel {
+  margin-top: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--ln);
+  border-radius: 6px;
+  padding: 10px;
+}
+.scan-ids {
+  width: 100%;
+  background: var(--bg1);
+  border: 1px solid var(--ln2);
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: var(--t0);
+  font-family: var(--mono);
+  font-size: 10px;
+  resize: vertical;
+  outline: none;
+  min-height: 52px;
+}
+.scan-ids:focus { border-color: var(--t3); }
+.scan-ids::placeholder { color: var(--t3); }
+.scan-result {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t1);
+  line-height: 1.7;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.dup-group {
+  border-bottom: 1px solid var(--ln);
+  padding: 5px 0;
+}
+.dup-keep { color: var(--grn); }
+.dup-remove { color: var(--red); }
+
 /* ── OAUTH NOTICE ────────────────────────────────────────────────────── */
 .oauth-notice {
   background: var(--ambd);
@@ -663,6 +703,17 @@ body {
       <button class="btn" style="width:100%;justify-content:center;margin-top:4px;font-size:9px;opacity:.6" onclick="runCleanup(true)">
         Simular (dry run)
       </button>
+      <div style="border-top:1px solid var(--ln);margin:10px 0 6px"></div>
+      <button class="btn" style="width:100%;justify-content:center;font-size:9px;color:var(--t2)" onclick="runPurge(true)">
+        👁 Ver o que seria limpo
+      </button>
+      <button class="btn danger" style="width:100%;justify-content:center;margin-top:4px;font-weight:600" id="purge-btn" onclick="confirmPurge()">
+        🧹 Fazer limpeza geral
+      </button>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:5px;line-height:1.5">
+        Apaga do Codental todos os arquivos enviados por esta plataforma
+      </div>
+      <div id="purge-result" style="display:none;margin-top:8px;font-family:var(--mono);font-size:10px;line-height:1.7;max-height:160px;overflow-y:auto"></div>
       <div class="date-field">
         <label class="date-label" for="since-input">Data retroativa (opcional)</label>
         <input
@@ -701,6 +752,18 @@ body {
       <div class="sort-row">
         <button class="sort-btn on" data-sort="newest" onclick="setSort(this,'newest')">Mais recentes</button>
         <button class="sort-btn" data-sort="oldest" onclick="setSort(this,'oldest')">Mais antigos</button>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-label">Varrer duplicatas no Codental</div>
+      <div class="scan-panel">
+        <textarea class="scan-ids" id="scan-ids" placeholder="IDs dos pacientes, um por linha&#10;Ex:&#10;3744810&#10;7037014"></textarea>
+        <div style="display:flex;gap:4px;margin-top:6px">
+          <button class="btn" style="flex:1;justify-content:center;font-size:9px" onclick="runScan(true)">Simular</button>
+          <button class="btn danger" style="flex:1;justify-content:center;font-size:9px" id="scan-del-btn" onclick="runScan(false)">Deletar dups</button>
+        </div>
+        <div class="scan-result" id="scan-result" style="display:none"></div>
       </div>
     </div>
 
@@ -1087,12 +1150,125 @@ function toast(msg, type = '') {
   el._t = setTimeout(() => el.classList.remove('show'), 4000);
 }
 
+// ── SCAN DUPLICATES ───────────────────────────────────────────────────────────
+async function runScan(dryRun) {
+  const raw = document.getElementById('scan-ids').value.trim();
+  if (!raw) { toast('Informe ao menos um ID de paciente', 'err'); return; }
+  const ids = raw.split(/[\n,;\s]+/).map(s => s.trim()).filter(Boolean);
+  if (!ids.length) { toast('Nenhum ID válido encontrado', 'err'); return; }
+
+  const btn = document.getElementById('scan-del-btn');
+  const out = document.getElementById('scan-result');
+  btn.disabled = true;
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--t2)">processando...</span>';
+
+  try {
+    const r = await fetch(`${API}/api/scan-duplicates`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_ids: ids, delete: !dryRun }),
+    });
+    const d = await r.json();
+    if (!d.ok) { out.innerHTML = `<span style="color:var(--red)">${esc(d.error)}</span>`; return; }
+
+    let html2 = '';
+    for (const p of d.patients || []) {
+      html2 += `<div style="color:var(--blu);padding:4px 0;border-bottom:1px solid var(--ln)">`;
+      html2 += `Paciente ${p.patient_id} — ${p.total_files} arquivos, ${p.duplicates_found} duplicatas`;
+      if (!dryRun) html2 += `, ${p.deleted} deletados`;
+      html2 += `</div>`;
+      for (const g of p.groups || []) {
+        html2 += `<div class="dup-group">`;
+        html2 += `<div class="dup-keep">✓ manter: ${esc(g.keep.filename)} [${g.keep.id}]</div>`;
+        for (const u of g.remove) {
+          html2 += `<div class="dup-remove">${dryRun ? '↓ remover' : '🗑 removido'}: ${esc(u.filename)} [${u.id}]</div>`;
+        }
+        html2 += `</div>`;
+      }
+      if ((p.groups || []).length === 0) {
+        html2 += `<div style="color:var(--t2);padding:2px 0">Nenhuma duplicata encontrada</div>`;
+      }
+    }
+    out.innerHTML = html2 || '<span style="color:var(--t2)">Concluído</span>';
+    toast(dryRun ? `Simulação: ${d.total_duplicates} duplicatas em ${ids.length} paciente(s)` : `Deletados: ${d.total_deleted}`, dryRun ? 'info' : 'ok');
+  } catch (e) {
+    out.innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`;
+    toast('Erro: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ── SORT ─────────────────────────────────────────────────────────────────────
 function setSort(el, s) {
   document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('on'));
   el.classList.add('on');
   sortOrder = s;
   loadLogs(1);
+}
+
+// ── PURGE ────────────────────────────────────────────────────────────────────
+function confirmPurge() {
+  const ok = confirm(
+    '⚠️ ATENÇÃO\n\n' +
+    'Isso vai apagar do Codental TODOS os arquivos enviados por esta plataforma.\n\n' +
+    'Clique em OK para confirmar a limpeza geral.\n' +
+    '(Use "Ver o que seria limpo" antes para conferir a lista)'
+  );
+  if (ok) runPurge(false);
+}
+
+async function runPurge(dryRun) {
+  const btn = document.getElementById('purge-btn');
+  const out = document.getElementById('purge-result');
+  if (btn) btn.disabled = true;
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--t2)">carregando...</span>';
+
+  try {
+    const method = dryRun ? 'GET' : 'POST';
+    const r = await fetch(`${API}/api/purge`, {
+      method,
+      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+    });
+    const d = await r.json();
+
+    if (!d.ok) {
+      out.innerHTML = `<span style="color:var(--red)">${esc(d.error)}</span>`;
+      return;
+    }
+
+    if (dryRun) {
+      // Mostra lista do que seria deletado
+      let h = `<div style="color:var(--amb);margin-bottom:6px">📋 ${d.total} arquivo(s) seriam deletados:</div>`;
+      const byPatient = {};
+      for (const item of d.items || []) {
+        if (!byPatient[item.patient_name]) byPatient[item.patient_name] = [];
+        byPatient[item.patient_name].push(item);
+      }
+      for (const [pname, items] of Object.entries(byPatient)) {
+        h += `<div style="color:var(--blu);margin-top:4px">${esc(pname)} (${items.length})</div>`;
+        for (const item of items) {
+          h += `<div style="color:var(--t2);padding-left:8px">· ${esc(item.filename)}</div>`;
+        }
+      }
+      out.innerHTML = h || '<span style="color:var(--t2)">Nenhum arquivo para limpar</span>';
+      toast(`${d.total} arquivo(s) seriam removidos`, 'info');
+    } else {
+      out.innerHTML = `
+        <div style="color:var(--grn)">✓ ${d.deleted} arquivo(s) deletados do Codental</div>
+        ${d.errors > 0 ? `<div style="color:var(--red)">❌ ${d.errors} erro(s)</div>` : ''}
+      `;
+      toast(`Limpeza concluída: ${d.deleted} deletados, ${d.errors} erros`, d.errors ? 'err' : 'ok');
+      await loadLogs();
+    }
+  } catch (e) {
+    out.innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`;
+    toast('Erro: ' + e.message, 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ── CLEANUP ───────────────────────────────────────────────────────────────────

@@ -6,9 +6,11 @@
     }
   ],
   "functions": {
-    "api/run.js":     { "maxDuration": 300 },
-    "api/logs.js":    { "maxDuration": 30 },
-    "api/cleanup.js": { "maxDuration": 120 }
+    "api/run.js":              { "maxDuration": 300 },
+    "api/logs.js":             { "maxDuration": 30 },
+    "api/cleanup.js":          { "maxDuration": 120 },
+    "api/purge.js":            { "maxDuration": 300 },
+    "api/scan-duplicates.js":  { "maxDuration": 300 }
   },
   "rewrites": [
     { "source": "/", "destination": "/public/index.html" }
