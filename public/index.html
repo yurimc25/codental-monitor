@@ -859,9 +859,16 @@ body {
       <div id="sync-status" style="font-family:var(--mono);font-size:10px;color:var(--t2);margin-bottom:8px;line-height:1.6">
         Verificando...
       </div>
-      <button class="btn" style="width:100%;justify-content:center" id="sync-btn" onclick="syncPatients()">
-        ↻ Sincronizar pacientes
+      <label class="btn primary" style="width:100%;justify-content:center;cursor:pointer;margin-bottom:6px" id="upload-label">
+        ↑ Importar CSV do Codental
+        <input type="file" accept=".csv" id="csv-file-input" style="display:none" onchange="importCSV(this)">
+      </label>
+      <button class="btn" style="width:100%;justify-content:center;font-size:9px;opacity:.7" id="sync-btn" onclick="syncPatients()">
+        ↻ Sincronização automática
       </button>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:5px;line-height:1.5">
+        Exporte o CSV em Pacientes → Baixar no Codental e importe aqui
+      </div>
     </div>
 
     <div class="sb-section">
@@ -1350,6 +1357,44 @@ function setSort(el, s) {
 
 
 // ── SYNC PATIENTS ────────────────────────────────────────────────────────────
+async function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const label = document.getElementById('upload-label');
+  const status = document.getElementById('sync-status');
+  label.style.opacity = '0.6';
+  status.innerHTML = '<span style="color:var(--t2)">Lendo arquivo...</span>';
+
+  try {
+    const text = await file.text();
+    status.innerHTML = '<span style="color:var(--t2)">Enviando para o servidor...</span>';
+
+    const r = await fetch(`${API}/api/import-patients`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': API_KEY,
+        'Content-Type': 'text/plain',
+      },
+      body: text,
+    });
+    const d = await r.json();
+
+    if (d.ok) {
+      toast(`✓ ${d.total} pacientes importados com sucesso`, 'ok');
+      await loadSyncStatus();
+    } else {
+      toast('Erro: ' + d.error, 'err');
+      status.innerHTML = `<span style="color:var(--red)">${esc(d.error)}</span>`;
+    }
+  } catch(e) {
+    toast(e.message, 'err');
+    status.innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`;
+  } finally {
+    label.style.opacity = '1';
+    input.value = ''; // reset para permitir reimportar o mesmo arquivo
+  }
+}
+
 async function loadSyncStatus() {
   try {
     const r = await fetch(`${API}/api/sync-patients`, { headers: { 'x-api-key': API_KEY } });

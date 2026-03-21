@@ -3,14 +3,15 @@
     { "path": "/api/run", "schedule": "0 8 * * *" }
   ],
   "functions": {
-    "api/run.js":             { "maxDuration": 300 },
-    "api/logs.js":            { "maxDuration": 30  },
-    "api/cleanup.js":         { "maxDuration": 120 },
-    "api/purge.js":           { "maxDuration": 300 },
-    "api/scan-duplicates.js": { "maxDuration": 300 },
-    "api/simulate.js":        { "maxDuration": 300 },
-    "api/review.js":          { "maxDuration": 300 },
-    "api/sync-patients.js":   { "maxDuration": 120 }
+    "api/run.js":              { "maxDuration": 300 },
+    "api/logs.js":             { "maxDuration": 30  },
+    "api/cleanup.js":          { "maxDuration": 120 },
+    "api/purge.js":            { "maxDuration": 300 },
+    "api/scan-duplicates.js":  { "maxDuration": 300 },
+    "api/simulate.js":         { "maxDuration": 300 },
+    "api/review.js":           { "maxDuration": 300 },
+    "api/sync-patients.js":    { "maxDuration": 120 },
+    "api/import-patients.js":  { "maxDuration": 60  }
   },
   "rewrites": [
     { "source": "/", "destination": "/public/index.html" }
