@@ -1,0 +1,15 @@
+{
+  "crons": [
+    {
+      "path": "/api/run",
+      "schedule": "*/15 * * * *"
+    }
+  ],
+  "functions": {
+    "api/run.js": { "maxDuration": 300 },
+    "api/logs.js": { "maxDuration": 30 }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/public/index.html" }
+  ]
+}

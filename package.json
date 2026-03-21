@@ -1,0 +1,11 @@
+{
+  "name": "codental-monitor",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Monitor Gmail → Upload automático Codental",
+  "dependencies": {
+    "googleapis": "^140.0.0",
+    "mongodb": "^6.0.0"
+  },
+  "engines": { "node": ">=20" }
+}

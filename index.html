@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor · Codental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg0: #080809;
+  --bg1: #0f0f11;
+  --bg2: #161618;
+  --bg3: #1d1d20;
+  --ln:  #26262a;
+  --ln2: #2e2e33;
+  --t0:  #f2f0eb;
+  --t1:  #a09e99;
+  --t2:  #606060;
+  --t3:  #3a3a3a;
+  --grn: #22c55e;
+  --grn2: #16a34a;
+  --grnd: rgba(34,197,94,.1);
+  --amb: #f59e0b;
+  --ambd: rgba(245,158,11,.1);
+  --red: #ef4444;
+  --redd: rgba(239,68,68,.1);
+  --blu: #60a5fa;
+  --blud: rgba(96,165,250,.08);
+  --vio: #a78bfa;
+  --viod: rgba(167,139,250,.08);
+  --mono: 'Geist Mono', monospace;
+  --sans: 'Geist', sans-serif;
+}
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg0);
+  color: var(--t0);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOPBAR ─────────────────────────────────────────────────────────── */
+.topbar {
+  height: 48px;
+  border-bottom: 1px solid var(--ln);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  flex-shrink: 0;
+  background: var(--bg0);
+  position: sticky; top: 0; z-index: 100;
+}
+
+.wordmark {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--t0);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wordmark::after {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--grn);
+  box-shadow: 0 0 6px var(--grn);
+  animation: pulse 2.5s ease infinite;
+}
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.divider { width: 1px; height: 20px; background: var(--ln2); }
+
+.pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--ln2);
+  color: var(--t2);
+  letter-spacing: .04em;
+}
+
+.pill.gmail-ok { color: var(--grn); border-color: rgba(34,197,94,.3); background: var(--grnd); }
+.pill.gmail-err { color: var(--red); border-color: rgba(239,68,68,.3); background: var(--redd); }
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--ln2);
+  background: transparent;
+  color: var(--t1);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+  transition: all .15s;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) { border-color: var(--t2); color: var(--t0); }
+.btn.primary { background: var(--grn); border-color: var(--grn); color: #000; font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: #4ade80; border-color: #4ade80; }
+.btn.primary:disabled { background: var(--bg3); border-color: var(--ln2); color: var(--t3); cursor: not-allowed; }
+.btn.ghost { border-color: transparent; }
+.btn.ghost:hover { border-color: var(--ln2); }
+
+/* ── LAYOUT ──────────────────────────────────────────────────────────── */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────────── */
+.sidebar {
+  border-right: 1px solid var(--ln);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.sb-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--ln);
+}
+
+.sb-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 10px;
+}
+
+/* stat cards */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--ln);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.stat-num {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 3px;
+  color: var(--t0);
+}
+
+.stat-lbl { font-size: 10px; color: var(--t2); }
+.stat-card.g .stat-num { color: var(--grn); }
+.stat-card.a .stat-num { color: var(--amb); }
+.stat-card.r .stat-num { color: var(--red); }
+.stat-card.b .stat-num { color: var(--blu); }
+
+/* run section */
+.last-run {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t2);
+  margin-top: 8px;
+  padding: 7px 9px;
+  background: var(--bg2);
+  border: 1px solid var(--ln);
+  border-radius: 5px;
+  line-height: 1.6;
+}
+
+.last-run span { color: var(--blu); }
+
+.cron-line {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t2);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cron-line em { color: var(--amb); font-style: normal; }
+
+/* filter chips */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--ln2);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--t2);
+  background: transparent;
+  transition: all .15s;
+  letter-spacing: .03em;
+}
+
+.chip:hover { color: var(--t0); border-color: var(--t3); }
+.chip.on { color: var(--t0); border-color: var(--t1); background: var(--bg3); }
+.chip.on[data-s="uploaded"] { color: var(--grn); border-color: rgba(34,197,94,.4); background: var(--grnd); }
+.chip.on[data-s="partial"] { color: var(--amb); border-color: rgba(245,158,11,.4); background: var(--ambd); }
+.chip.on[data-s="failed"] { color: var(--red); border-color: rgba(239,68,68,.4); background: var(--redd); }
+.chip.on[data-s="no_patient"] { color: var(--t1); border-color: var(--t3); background: var(--bg3); }
+.chip.on[data-s="duplicate_all"] { color: var(--amb); border-color: rgba(245,158,11,.4); background: var(--ambd); }
+
+/* keywords */
+.kw-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.kw {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--blud);
+  border: 1px solid rgba(96,165,250,.2);
+  color: var(--blu);
+}
+
+/* ── CONTENT ─────────────────────────────────────────────────────────── */
+.content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.toolbar {
+  border-bottom: 1px solid var(--ln);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.toolbar-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--t2);
+}
+
+.search {
+  margin-left: auto;
+  background: var(--bg2);
+  border: 1px solid var(--ln2);
+  border-radius: 5px;
+  padding: 5px 10px;
+  color: var(--t0);
+  font-family: var(--mono);
+  font-size: 11px;
+  width: 230px;
+  outline: none;
+}
+
+.search:focus { border-color: var(--t3); }
+.search::placeholder { color: var(--t3); }
+
+/* ── LOG LIST ─────────────────────────────────────────────────────────── */
+.log-wrap { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ln2) transparent; }
+
+.log-item {
+  border-bottom: 1px solid var(--ln);
+  padding: 13px 18px;
+  display: grid;
+  grid-template-columns: 108px 1fr auto;
+  gap: 14px;
+  align-items: start;
+  cursor: pointer;
+  transition: background .1s;
+  position: relative;
+}
+
+.log-item:hover { background: var(--bg1); }
+.log-item.open { background: var(--bg1); }
+
+/* left status bar */
+.log-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--ln2);
+  transition: background .15s;
+}
+
+.log-item[data-st="uploaded"]::before { background: var(--grn); }
+.log-item[data-st="partial"]::before { background: var(--amb); }
+.log-item[data-st="failed"]::before { background: var(--red); }
+.log-item[data-st="duplicate_all"]::before { background: var(--amb); opacity: .5; }
+
+.log-time {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t2);
+  line-height: 1.8;
+  padding-top: 1px;
+}
+
+.log-main {}
+
+.log-subject {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px;
+  margin-bottom: 4px;
+}
+
+.log-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.log-from { font-family: var(--mono); font-size: 10px; color: var(--t2); }
+
+.tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.tag.patient { background: var(--blud); color: var(--blu); border: 1px solid rgba(96,165,250,.2); }
+.tag.no-pat { background: var(--bg3); color: var(--t2); border: 1px solid var(--ln2); }
+.tag.kw { background: var(--viod); color: var(--vio); border: 1px solid rgba(167,139,250,.2); }
+
+.log-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+.badge.uploaded { background: var(--grnd); color: var(--grn); border: 1px solid rgba(34,197,94,.25); }
+.badge.partial { background: var(--ambd); color: var(--amb); border: 1px solid rgba(245,158,11,.25); }
+.badge.failed { background: var(--redd); color: var(--red); border: 1px solid rgba(239,68,68,.25); }
+.badge.no_patient { background: var(--bg3); color: var(--t2); border: 1px solid var(--ln2); }
+.badge.duplicate_all { background: var(--ambd); color: var(--amb); border: 1px solid rgba(245,158,11,.25); opacity:.7; }
+.badge.no_attachments { background: var(--bg3); color: var(--t3); border: 1px solid var(--ln); }
+
+.att-summary { font-family: var(--mono); font-size: 10px; color: var(--t2); }
+
+/* ── DETAIL ROW ───────────────────────────────────────────────────────── */
+.detail {
+  display: none;
+  border-bottom: 1px solid var(--ln);
+  background: var(--bg1);
+  padding: 0 18px 14px calc(18px + 108px + 14px);
+}
+
+.detail.open { display: block; }
+
+.detail-section { margin-bottom: 10px; }
+
+.detail-head {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--ln);
+  margin-top: 6px;
+}
+
+.detail-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t2);
+  line-height: 2;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 0 8px;
+}
+
+.detail-meta .key { color: var(--t3); }
+.detail-meta .val { color: var(--t1); }
+.detail-meta .val.ok { color: var(--grn); }
+.detail-meta .val.warn { color: var(--amb); }
+.detail-meta .val.err { color: var(--red); }
+
+.att-table { width: 100%; border-collapse: collapse; }
+.att-table th {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--t3);
+  text-align: left;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--ln);
+}
+
+.att-table td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ln);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t1);
+  vertical-align: middle;
+}
+
+.att-table tr:last-child td { border-bottom: none; }
+.att-table .fn { color: var(--t0); }
+.att-table .sz { color: var(--t2); }
+
+/* ── EMPTY / LOADING ─────────────────────────────────────────────────── */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--t3);
+}
+
+.empty .icon { font-family: var(--mono); font-size: 28px; }
+.empty p { font-family: var(--mono); font-size: 11px; color: var(--t2); }
+
+/* ── PAGINATION ──────────────────────────────────────────────────────── */
+.pag {
+  border-top: 1px solid var(--ln);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.pag-info { font-family: var(--mono); font-size: 10px; color: var(--t2); }
+.pag-btns { display: flex; gap: 4px; }
+
+.pag-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 9px;
+  border: 1px solid var(--ln2);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.pag-btn:hover:not(:disabled) { color: var(--t0); border-color: var(--t3); }
+.pag-btn.on { color: var(--t0); border-color: var(--t1); background: var(--bg3); }
+.pag-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ── LOADING OVERLAY ─────────────────────────────────────────────────── */
+.overlay {
+  position: absolute; inset: 0;
+  background: rgba(8,8,9,.88);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; z-index: 50; display: none;
+}
+
+.overlay.show { display: flex; }
+
+.spinner {
+  width: 26px; height: 26px;
+  border: 2px solid var(--ln2);
+  border-top-color: var(--grn);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay p { font-family: var(--mono); font-size: 11px; color: var(--t2); }
+
+/* ── OAUTH NOTICE ────────────────────────────────────────────────────── */
+.oauth-notice {
+  background: var(--ambd);
+  border-bottom: 1px solid rgba(245,158,11,.3);
+  padding: 10px 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amb);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  display: none;
+}
+
+.oauth-notice.show { display: flex; }
+
+/* ── TOAST ───────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 20px; right: 20px;
+  padding: 9px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--ln2);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--t0);
+  z-index: 9999;
+  transform: translateY(60px); opacity: 0;
+  transition: all .22s;
+  max-width: 300px;
+  pointer-events: none;
+}
+
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.ok { color: var(--grn); border-color: rgba(34,197,94,.3); }
+#toast.err { color: var(--red); border-color: rgba(239,68,68,.3); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wordmark">Codental Monitor</div>
+  <div class="divider"></div>
+  <span class="pill" id="gmail-pill">Gmail: verificando...</span>
+  <div class="topbar-right">
+    <span class="pill" id="cron-pill">cron ·/15 min</span>
+    <button class="btn ghost" id="connect-btn" onclick="connectGmail()" style="display:none">Conectar Gmail</button>
+    <button class="btn primary" id="run-btn" onclick="runNow()">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+      Processar agora
+    </button>
+  </div>
+</div>
+
+<div class="oauth-notice" id="oauth-notice">
+  ⚠ Gmail não conectado — o monitoramento automático não funcionará até que você conecte a conta.
+  <button class="btn" style="padding:4px 10px;font-size:10px" onclick="connectGmail()">Conectar agora</button>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">Totais acumulados</div>
+      <div class="stats-grid">
+        <div class="stat-card g"><div class="stat-num" id="s-up">—</div><div class="stat-lbl">arquivos enviados</div></div>
+        <div class="stat-card a"><div class="stat-num" id="s-dup">—</div><div class="stat-lbl">duplicatas</div></div>
+        <div class="stat-card r"><div class="stat-num" id="s-err">—</div><div class="stat-lbl">erros</div></div>
+        <div class="stat-card b"><div class="stat-num" id="s-tot">—</div><div class="stat-lbl">emails processados</div></div>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-label">Controle</div>
+      <button class="btn primary" style="width:100%;justify-content:center;margin-bottom:6px" id="run-btn2" onclick="runNow()">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+        Processar agora
+      </button>
+      <button class="btn" style="width:100%;justify-content:center" onclick="loadLogs()">
+        Atualizar logs
+      </button>
+      <div class="last-run" id="last-run-box">
+        Última execução<br><span id="last-run-val">—</span>
+      </div>
+      <div class="cron-line">
+        Próximo cron: <em id="next-cron">calculando...</em>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-label">Filtrar</div>
+      <div class="chips">
+        <button class="chip on" data-s="" onclick="setFilter(this,'')">Todos</button>
+        <button class="chip" data-s="uploaded" onclick="setFilter(this,'uploaded')">Enviados</button>
+        <button class="chip" data-s="duplicate_all" onclick="setFilter(this,'duplicate_all')">Duplicatas</button>
+        <button class="chip" data-s="partial" onclick="setFilter(this,'partial')">Parcial</button>
+        <button class="chip" data-s="failed" onclick="setFilter(this,'failed')">Erro</button>
+        <button class="chip" data-s="no_patient" onclick="setFilter(this,'no_patient')">Sem paciente</button>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-label">Keywords ativas</div>
+      <div class="kw-wrap" id="kw-wrap">
+        <span class="kw">tomografia</span>
+        <span class="kw">voxels</span>
+        <span class="kw">fenelon</span>
+        <span class="kw">radiomaster</span>
+        <span class="kw">documentação</span>
+        <span class="kw">cbct</span>
+        <span class="kw">laudo</span>
+        <span class="kw">radiografia</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="overlay" id="overlay">
+      <div class="spinner"></div>
+      <p id="overlay-msg">processando emails...</p>
+    </div>
+
+    <div class="toolbar">
+      <span class="toolbar-title" id="toolbar-title">logs</span>
+      <input class="search" type="text" placeholder="buscar por assunto, paciente, remetente..." id="search" oninput="onSearch(this.value)">
+    </div>
+
+    <div class="log-wrap" id="log-wrap">
+      <div class="empty" id="empty" style="display:none">
+        <span class="icon">[ ]</span>
+        <p>nenhum registro encontrado</p>
+      </div>
+    </div>
+
+    <div class="pag" id="pag" style="display:none">
+      <span class="pag-info" id="pag-info"></span>
+      <div class="pag-btns" id="pag-btns"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = ''; // mesma origin
+const API_KEY = window._API_KEY || 'DASHBOARD_API_KEY'; // injetado pelo servidor ou hardcoded
+
+let filter = '', page = 1, searchQ = '';
+let searchTimer = null;
+let running = false;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  checkURLParams();
+  await Promise.all([loadStats(), checkGmail()]);
+  await loadLogs();
+  cronTimer();
+  setInterval(cronTimer, 1000);
+  setInterval(loadStats, 30000);
+  setInterval(loadLogs, 60000);
+}
+
+function checkURLParams() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('connected')) { toast('Gmail conectado com sucesso', 'ok'); history.replaceState({}, '', '/'); }
+  if (p.get('error')) { toast('Erro: ' + p.get('error'), 'err'); history.replaceState({}, '', '/'); }
+}
+
+// ── GMAIL STATUS ──────────────────────────────────────────────────────────────
+async function checkGmail() {
+  // Tenta chamar logs — se retornar 200, Gmail está configurado
+  try {
+    const r = await fetch(`${API}/api/logs?page=1&limit=1`);
+    if (r.ok) {
+      setGmailStatus(true);
+    } else {
+      setGmailStatus(false);
+    }
+  } catch { setGmailStatus(false); }
+}
+
+function setGmailStatus(ok) {
+  const pill = document.getElementById('gmail-pill');
+  const btn = document.getElementById('connect-btn');
+  const notice = document.getElementById('oauth-notice');
+  if (ok) {
+    pill.textContent = 'Gmail: conectado'; pill.className = 'pill gmail-ok';
+    btn.style.display = 'none'; notice.classList.remove('show');
+  } else {
+    pill.textContent = 'Gmail: desconectado'; pill.className = 'pill gmail-err';
+    btn.style.display = ''; notice.classList.add('show');
+  }
+}
+
+async function connectGmail() {
+  try {
+    const r = await fetch(`${API}/api/gmail/auth`);
+    const { url } = await r.json();
+    location.href = url;
+  } catch { toast('Erro ao iniciar OAuth', 'err'); }
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch(`${API}/api/logs?stats=1`);
+    const d = await r.json();
+    document.getElementById('s-up').textContent = d.att_uploaded ?? '—';
+    document.getElementById('s-dup').textContent = d.att_duplicate ?? '—';
+    document.getElementById('s-err').textContent = d.att_error ?? '—';
+    document.getElementById('s-tot').textContent = d.total_emails ?? '—';
+    if (d.last_run) {
+      document.getElementById('last-run-val').textContent = fmtDate(d.last_run);
+    }
+  } catch {}
+}
+
+// ── RUN NOW ───────────────────────────────────────────────────────────────────
+async function runNow() {
+  if (running) return;
+  running = true;
+  setRunning(true);
+
+  try {
+    const r = await fetch(`${API}/api/run`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY },
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const msg = `${d.emails_found} emails · ${d.att_uploaded} enviados · ${d.att_duplicate} duplicatas`;
+      toast(msg, 'ok');
+      await Promise.all([loadStats(), loadLogs()]);
+    } else {
+      toast('Erro: ' + (d.error || 'desconhecido'), 'err');
+    }
+  } catch (e) {
+    toast('Falha de conexão: ' + e.message, 'err');
+  } finally {
+    running = false;
+    setRunning(false);
+  }
+}
+
+function setRunning(yes) {
+  const btns = [document.getElementById('run-btn'), document.getElementById('run-btn2')];
+  btns.forEach(b => { if (!b) return; b.disabled = yes; });
+  document.getElementById('overlay').classList.toggle('show', yes);
+}
+
+// ── LOGS ──────────────────────────────────────────────────────────────────────
+async function loadLogs(p = page) {
+  page = p;
+  try {
+    const params = new URLSearchParams({ page, limit: 25 });
+    if (filter) params.set('status', filter);
+    if (searchQ) params.set('search', searchQ);
+    const r = await fetch(`${API}/api/logs?${params}`);
+    const d = await r.json();
+    renderLogs(d.logs || []);
+    renderPag(d.total || 0, d.pages || 1, page);
+    document.getElementById('toolbar-title').textContent =
+      `${d.total ?? 0} registro${(d.total ?? 0) !== 1 ? 's' : ''}`;
+  } catch { toast('Erro ao carregar logs', 'err'); }
+}
+
+function onSearch(v) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { searchQ = v; loadLogs(1); }, 350);
+}
+
+function setFilter(el, f) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  filter = f;
+  loadLogs(1);
+}
+
+// ── RENDER LOGS ───────────────────────────────────────────────────────────────
+function renderLogs(logs) {
+  const wrap = document.getElementById('log-wrap');
+  const empty = document.getElementById('empty');
+  [...wrap.children].forEach(el => el.id !== 'empty' && el.remove());
+
+  if (!logs.length) { empty.style.display = 'flex'; return; }
+  empty.style.display = 'none';
+
+  logs.forEach((log, i) => {
+    // Item row
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.dataset.i = i;
+    item.dataset.st = log.status || '';
+    item.setAttribute('data-st', log.status || '');
+
+    const time = log.processed_at ? fmtDate(log.processed_at) : '—';
+    const atts = log.attachments || [];
+    const up = atts.filter(a => a.status === 'uploaded').length;
+    const dup = atts.filter(a => a.status === 'skipped_duplicate').length;
+    const err = atts.filter(a => a.status === 'error').length;
+
+    const patientTag = log.patient_id_codental
+      ? `<span class="tag patient">👤 ${esc(log.patient_name_codental || log.patient_name_extracted || 'paciente')}</span>`
+      : log.patient_name_extracted
+        ? `<span class="tag no-pat">? ${esc(log.patient_name_extracted)}</span>`
+        : '';
+
+    const kwTags = (log.keywords_matched || []).slice(0, 2)
+      .map(k => `<span class="tag kw">${esc(k)}</span>`).join('');
+
+    const attSummary = atts.length
+      ? `<span class="att-summary">${up}↑ ${dup}≡ ${err > 0 ? err + '✕' : ''} / ${atts.length}</span>`
+      : '';
+
+    item.innerHTML = `
+      <div class="log-time">${time.replace(' ', '<br>')}</div>
+      <div class="log-main">
+        <div class="log-subject" title="${esc(log.subject || '')}">${esc(log.subject || '(sem assunto)')}</div>
+        <div class="log-meta">
+          <span class="log-from">${esc(shortFrom(log.from || ''))}</span>
+          ${patientTag}${kwTags}
+        </div>
+      </div>
+      <div class="log-right">
+        <span class="badge ${log.status || ''}">${statusLabel(log.status)}</span>
+        ${attSummary}
+      </div>
+    `;
+
+    item.onclick = () => toggleDetail(i);
+    wrap.appendChild(item);
+
+    // Detail row
+    const det = document.createElement('div');
+    det.className = 'detail';
+    det.id = `det-${i}`;
+    det.innerHTML = buildDetail(log);
+    wrap.appendChild(det);
+  });
+}
+
+function buildDetail(log) {
+  const atts = log.attachments || [];
+
+  const metaRows = [
+    ['Gmail ID', log.gmail_message_id || '—'],
+    ['De', log.from || '—'],
+    ['Data do email', log.date || '—'],
+    ['Paciente (extraído)', log.patient_name_extracted || '—'],
+    ['Paciente (Codental)', log.patient_name_codental || '—'],
+    ['ID Codental', log.patient_id_codental || '—'],
+    ['Keywords', (log.keywords_matched || []).join(', ') || '—'],
+    ['Marcado como lido', log.marked_read ? 'sim' : 'não'],
+  ].map(([k, v]) => `<div class="key">${k}</div><div class="val">${esc(v)}</div>`).join('');
+
+  const attRows = atts.length ? atts.map(a => `
+    <tr>
+      <td class="fn">${esc(a.filename)}</td>
+      <td class="sz">${fmtBytes(a.size_bytes)}</td>
+      <td><span class="badge ${a.status || ''}" style="font-size:9px">${attLabel(a.status)}</span></td>
+      <td style="color:var(--t2);font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis">
+        ${esc(a.error_message || a.skipped_reason || a.codental_upload_id ? 'ID: '+a.codental_upload_id : '')}
+      </td>
+    </tr>`).join('')
+    : '<tr><td colspan="4" style="color:var(--t3);padding:8px 0">nenhum anexo</td></tr>';
+
+  return `
+    <div class="detail-head">Informações do email</div>
+    <div class="detail-meta">${metaRows}</div>
+    <div class="detail-head">Anexos (${atts.length})</div>
+    <table class="att-table">
+      <thead><tr><th>Arquivo</th><th>Tamanho</th><th>Status</th><th>Detalhe</th></tr></thead>
+      <tbody>${attRows}</tbody>
+    </table>
+  `;
+}
+
+let openDet = null;
+
+function toggleDetail(i) {
+  if (openDet !== null && openDet !== i) {
+    const prev = document.getElementById(`det-${openDet}`);
+    const prevItem = prev?.previousElementSibling;
+    prev?.classList.remove('open');
+    prevItem?.classList.remove('open');
+  }
+  const det = document.getElementById(`det-${i}`);
+  const item = det?.previousElementSibling;
+  det?.classList.toggle('open');
+  item?.classList.toggle('open');
+  openDet = det?.classList.contains('open') ? i : null;
+}
+
+// ── PAGINATION ────────────────────────────────────────────────────────────────
+function renderPag(total, pages, cur) {
+  const pag = document.getElementById('pag');
+  pag.style.display = pages > 1 ? 'flex' : 'none';
+  document.getElementById('pag-info').textContent = `${total} registros · página ${cur} de ${pages}`;
+  const btns = document.getElementById('pag-btns');
+  btns.innerHTML = '';
+  const mk = (label, p, disabled, cls) => {
+    const b = document.createElement('button');
+    b.className = 'pag-btn' + (cls ? ' ' + cls : '');
+    b.textContent = label;
+    b.disabled = disabled;
+    b.onclick = () => loadLogs(p);
+    btns.appendChild(b);
+  };
+  mk('←', cur - 1, cur <= 1);
+  const start = Math.max(1, cur - 2), end = Math.min(pages, cur + 2);
+  for (let p2 = start; p2 <= end; p2++) mk(p2, p2, false, p2 === cur ? 'on' : '');
+  mk('→', cur + 1, cur >= pages);
+}
+
+// ── CRON TIMER ────────────────────────────────────────────────────────────────
+function cronTimer() {
+  const now = new Date();
+  const next = new Date(now);
+  const m = next.getMinutes();
+  next.setMinutes(Math.ceil((m + 1) / 15) * 15, 0, 0);
+  if (next <= now) next.setMinutes(next.getMinutes() + 15);
+  const diff = Math.round((next - now) / 1000);
+  const mm = Math.floor(diff / 60), ss = diff % 60;
+  document.getElementById('next-cron').textContent =
+    `${mm}m ${ss.toString().padStart(2,'0')}s (${next.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  const dt = new Date(d);
+  return dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) + ' ' +
+         dt.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+}
+
+function fmtBytes(b) {
+  if (!b) return '—';
+  if (b < 1024) return `${b}B`;
+  if (b < 1048576) return `${(b/1024).toFixed(1)}KB`;
+  return `${(b/1048576).toFixed(1)}MB`;
+}
+
+function shortFrom(f) {
+  const m = f.match(/<([^>]+)>/) || f.match(/([^\s]+@[^\s]+)/);
+  return m ? m[1] : f.slice(0, 40);
+}
+
+const STATUS_LABELS = {
+  uploaded: 'Enviado', partial: 'Parcial', failed: 'Erro',
+  no_patient: 'Sem paciente', duplicate_all: 'Duplicata', no_attachments: 'Sem anexos',
+};
+
+function statusLabel(s) { return STATUS_LABELS[s] || s || '—'; }
+
+const ATT_LABELS = { uploaded: 'Enviado', skipped_duplicate: 'Duplicata', error: 'Erro' };
+function attLabel(s) { return ATT_LABELS[s] || s || '—'; }
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+init();
+</script>
+</body>
+</html>
