@@ -67,6 +67,11 @@ export default async function handler(req, res) {
         }).toArray();
 
         console.log(`📋 ${logs.length} logs com uploads encontrados`);
+        
+        // Debug: log first attachment to verify structure
+        if (logs[0]?.attachments?.[0]) {
+            console.log('Sample attachment:', JSON.stringify(logs[0].attachments[0]));
+        }
 
         // Agrupa por paciente → lista de filenames a deletar
         const byPatient = {};
@@ -163,6 +168,10 @@ async function purgePatient(patientId, patientName, filenames) {
     }
 
     console.log(`  📁 ${uploadsOnCodental.length} arquivo(s) no Codental`);
+    console.log(`  🎯 Buscando: ${filenames.slice(0,3).join(', ')}...`);
+    if (uploadsOnCodental.length > 0) {
+        console.log(`  📄 No Codental: ${uploadsOnCodental.slice(0,3).map(u=>u.filename).join(', ')}...`);
+    }
 
     // 2. Para cada filename que queremos deletar, acha o upload_id no Codental
     const filenameSet = new Set(filenames.map(f => f.toLowerCase()));
