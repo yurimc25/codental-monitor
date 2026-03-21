@@ -4,7 +4,7 @@
 
 import { google } from 'googleapis';
 import { getMessage, getHeaders, getBody, getAttachments, detectKeywords } from '../lib/gmail.js';
-import { searchPatientsLocal, getCacheStatus } from '../lib/patientSearch.js';
+import { searchPatientsWithFallback, searchPatientsLocal, getCacheStatus } from '../lib/patientSearch.js';
 import { extractNames, bestMatch } from '../lib/extractor.js';
 import { getSettings, updateSettings } from '../lib/db.js';
 
@@ -45,6 +45,7 @@ export default async function handler(req, res) {
     if (key !== process.env.API_KEY) return res.status(401).json({ error: 'Não autorizado' });
 
     const days = parseInt(req.body?.days) || 7;
+    const searchSource = req.body?.search_source || 'auto'; // 'auto' | 'local' | 'api'
 
     try {
         const settings = await getSettings();
@@ -94,19 +95,26 @@ export default async function handler(req, res) {
             entry.patient_extracted = candidates[0]?.name || null;
 
             if (candidates.length > 0) {
-                const cacheStatus = await getCacheStatus();
                 for (const cand of candidates) {
-                    let patients;
-                    if (cacheStatus.available) {
-                        patients = await searchPatientsLocal(cand.name, 10);
-                    } else {
+                    let patients = [], src = '';
+                    if (searchSource === 'local') {
+                        patients = await searchPatientsLocal(cand.name, 20);
+                        src = 'local';
+                    } else if (searchSource === 'api') {
                         patients = await searchPatients(cand.name);
+                        src = 'api';
+                    } else {
+                        // auto: local com fallback para API
+                        const result = await searchPatientsWithFallback(cand.name);
+                        patients = result.patients;
+                        src = result.source;
                     }
                     const match = bestMatch([cand], patients);
                     if (match) {
-                        entry.patient_found = true;
-                        entry.patient_id    = String(match.patient.id);
-                        entry.patient_name  = match.patient.name || match.patient.full_name || cand.name;
+                        entry.patient_found  = true;
+                        entry.patient_id     = String(match.patient.id);
+                        entry.patient_name   = match.patient.name || match.patient.full_name || cand.name;
+                        entry.patient_source = src;
                         break;
                     }
                 }
@@ -140,7 +148,7 @@ export default async function handler(req, res) {
 
         // Stats
         const allAtts = emails.flatMap(e => e.attachments);
-        return res.status(200).json({
+        return res.status(200).json({ search_source: searchSource,
             ok: true,
             days,
             query,

@@ -933,10 +933,18 @@ body {
     <span class="sim-title">Simulação de processamento</span>
     <button class="sim-close" onclick="closeSimulate()">✕ Fechar</button>
   </div>
-  <div class="sim-days-row">
+  <div class="sim-days-row" style="flex-wrap:wrap;gap:8px">
     <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">Últimos</span>
     <input class="sim-days-input" id="sim-days" type="number" value="7" min="1" max="90">
     <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">dias</span>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:8px">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">Busca:</span>
+      <select id="sim-source" style="background:var(--bg2);border:1px solid var(--ln2);border-radius:4px;padding:4px 8px;color:var(--t0);font-family:var(--mono);font-size:10px;outline:none">
+        <option value="auto">Auto (local + Codental)</option>
+        <option value="local">Somente base local</option>
+        <option value="api">Somente API Codental</option>
+      </select>
+    </div>
     <button class="btn primary" style="padding:5px 14px;font-size:10px" id="sim-run-btn" onclick="runSimulate()">
       ▶ Executar simulação
     </button>
@@ -1572,7 +1580,7 @@ function closeSimulate() {
   document.getElementById('sim-overlay').classList.remove('show');
 }
 
-async function runSimulate() {
+/* v2 */ async function runSimulate() {
   const days = parseInt(document.getElementById('sim-days').value) || 7;
   const btn  = document.getElementById('sim-run-btn');
   const body = document.getElementById('sim-body');
@@ -1583,11 +1591,12 @@ async function runSimulate() {
   stats.style.display = 'none';
   body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:40px;font-family:var(--mono);font-size:11px;color:var(--t2)"><div class="spinner"></div> Buscando emails dos últimos ${days} dias e verificando pacientes...</div>`;
 
+  const searchSource = document.getElementById('sim-source')?.value || 'auto';
   try {
     const r = await fetch(`${API}/api/simulate`, {
       method: 'POST',
       headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ days }),
+      body: JSON.stringify({ days, search_source: searchSource }),
     });
     const d = await r.json();
 
@@ -1618,7 +1627,7 @@ async function runSimulate() {
           <div>
             <div class="sim-subject">${esc(email.subject || '(sem assunto)')}</div>
             <div class="sim-meta">${esc(shortFrom(email.from))} · ${email.date ? new Date(email.date).toLocaleDateString('pt-BR') : '?'}</div>
-            ${email.patient_name ? `<div class="sim-meta" style="color:var(--blu);margin-top:2px">👤 ${esc(email.patient_name)}</div>` : `<div class="sim-meta" style="color:var(--red);margin-top:2px">? ${esc(email.patient_extracted || 'paciente não identificado')}</div>`}
+            ${email.patient_name ? `<div class="sim-meta" style="color:var(--blu);margin-top:2px">👤 ${esc(email.patient_name)}${email.patient_source ? ' <span style="color:var(--t3);font-size:9px">('+email.patient_source+')</span>' : ''}</div>` : `<div class="sim-meta" style="color:var(--red);margin-top:2px">? ${esc(email.patient_extracted || 'paciente não identificado')}</div>`}
           </div>
           <div class="sim-badges">
             <span class="${email.is_read ? 'pill-read' : 'pill-unread'}">${email.is_read ? 'lido' : 'não lido'}</span>
