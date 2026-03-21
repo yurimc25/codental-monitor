@@ -1,8 +1,9 @@
-// api/purge.js — Apaga do Codental TUDO que esta plataforma enviou
+// api/purge.js — Limpa do Codental tudo que esta plataforma enviou
+// Estratégia: para cada log com status=uploaded, acessa a página do paciente,
+// encontra os uploads pelo nome do arquivo e deleta.
 //
-// GET  /api/purge                    → lista o que seria deletado (dry run)
-// POST /api/purge                    → deleta tudo (todos os logs)
-// POST /api/purge { log_ids: [...] } → deleta apenas logs específicos
+// GET  /api/purge  → dry run, lista o que seria deletado
+// POST /api/purge  → executa a limpeza
 
 import crypto from 'crypto';
 import { db } from '../lib/db.js';
@@ -18,9 +19,9 @@ let _sess = null, _sessAt = 0;
 async function sess() {
     if (_sess && Date.now() - _sessAt < 4 * 60 * 1000) return _sess;
 
-    const pg  = await fetch(LOGIN_URL, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' } });
-    const htm = await pg.text();
-    const raw = pg.headers.get('set-cookie') || '';
+    const pg   = await fetch(LOGIN_URL, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' } });
+    const htm  = await pg.text();
+    const raw  = pg.headers.get('set-cookie') || '';
     const csrf = (htm.match(/<meta[^>]+name=["']csrf-token["'][^>]+content=["']([^"']+)/i) || [])[1] || '';
     const init = (raw.match(/_domain_session=[^;,]+/) || [])[0] || '';
 
@@ -36,7 +37,7 @@ async function sess() {
 
     const sc     = lr.headers.get('set-cookie') || '';
     const cookie = (sc.match(/_domain_session=[^;,]+/) || [])[0];
-    if (!cookie) throw new Error('Login Codental falhou no purge');
+    if (!cookie) throw new Error('Login Codental falhou');
 
     const ar = await fetch(`${APP_BASE}/patients`, { headers: { 'Cookie': cookie, 'User-Agent': 'Mozilla/5.0' } });
     const ah = await ar.text();
@@ -45,6 +46,7 @@ async function sess() {
 
     _sess = { cookie: nc, csrf: ac };
     _sessAt = Date.now();
+    console.log('✅ Session OK para purge');
     return _sess;
 }
 
@@ -58,79 +60,163 @@ export default async function handler(req, res) {
     try {
         const col = (await db()).collection('email_logs');
 
-        // Busca todos os logs que tiveram uploads com codental_upload_id
-        const filter = {};  // deleta todos os logs com uploads
+        // Busca todos os logs com uploads bem-sucedidos
+        const logs = await col.find({
+            status: { $in: ['uploaded', 'partial'] },
+            'attachments.status': 'uploaded',
+        }).toArray();
 
-        const logs = await col.find(filter).toArray();
+        console.log(`📋 ${logs.length} logs com uploads encontrados`);
 
-        // Coleta todos os uploads com codental_upload_id (qualquer status exceto já purgado)
-        const toDelete = [];
+        // Agrupa por paciente → lista de filenames a deletar
+        const byPatient = {};
         for (const log of logs) {
-            if (!log.patient_id_codental) continue;
-            for (const att of log.attachments || []) {
-                const uid = att.codental_upload_id;
-                if (!uid) continue;
-                if (att.status === 'purged') continue; // já foi limpo antes
-                toDelete.push({
-                    log_id:       String(log._id),
-                    patient_id:   log.patient_id_codental,
+            const pid = log.patient_id_codental;
+            if (!pid) continue;
+            if (!byPatient[pid]) {
+                byPatient[pid] = {
+                    patient_id:   pid,
                     patient_name: log.patient_name_codental || log.patient_name_extracted || '?',
-                    upload_id:    String(uid),
-                    filename:     att.filename || '(sem nome)',
-                    email_subject: log.subject || '',
-                    processed_at:  log.processed_at,
-                });
+                    filenames:    new Set(),
+                    log_ids:      [],
+                };
             }
+            for (const att of log.attachments || []) {
+                if (att.status === 'uploaded' && att.filename) {
+                    byPatient[pid].filenames.add(att.filename);
+                }
+            }
+            byPatient[pid].log_ids.push(String(log._id));
         }
 
-        console.log(`🔍 Logs: ${logs.length} | Uploads encontrados: ${toDelete.length}`);
+        const patients = Object.values(byPatient);
+        console.log(`👥 ${patients.length} pacientes com uploads`);
 
         if (dryRun) {
+            // Dry run: lista o que seria deletado sem acessar o Codental
+            const preview = patients.map(p => ({
+                patient_id:   p.patient_id,
+                patient_name: p.patient_name,
+                files_to_delete: [...p.filenames],
+            }));
             return res.status(200).json({
                 ok: true,
                 dry_run: true,
-                total: toDelete.length,
-                items: toDelete,
+                total_patients: patients.length,
+                total_files: patients.reduce((s, p) => s + p.filenames.size, 0),
+                patients: preview,
             });
         }
 
-        // Executa as deleções
-        let deleted = 0;
+        // Execução: para cada paciente, busca os uploads no Codental e deleta por nome
+        let totalDeleted = 0;
+        let totalNotFound = 0;
         const errors = [];
+        const results = [];
 
-        for (const item of toDelete) {
-            try {
-                await deleteUpload(item.patient_id, item.upload_id);
-                deleted++;
-                console.log(`🗑 Deletado: ${item.filename} (paciente ${item.patient_id})`);
+        for (const p of patients) {
+            const r = await purgePatient(p.patient_id, p.patient_name, [...p.filenames]);
+            totalDeleted  += r.deleted;
+            totalNotFound += r.not_found;
+            if (r.errors.length) errors.push(...r.errors);
+            results.push(r);
 
-                // Marca como deletado no MongoDB
-                await col.updateOne(
-                    { _id: item.log_id, 'attachments.codental_upload_id': item.upload_id },
-                    { $set: {
-                        'attachments.$.status': 'purged',
-                        'attachments.$.purged_at': new Date(),
-                    }}
+            // Marca logs como purgados no MongoDB
+            if (r.deleted > 0) {
+                await col.updateMany(
+                    { _id: { $in: p.log_ids }, 'attachments.status': 'uploaded' },
+                    { $set: { 'attachments.$[att].status': 'purged', 'attachments.$[att].purged_at': new Date() } },
+                    { arrayFilters: [{ 'att.status': 'uploaded' }] }
                 );
-            } catch (err) {
-                console.error(`❌ ${item.filename}: ${err.message}`);
-                errors.push({ ...item, error: err.message });
             }
         }
 
         return res.status(200).json({
             ok: true,
             dry_run: false,
-            total: toDelete.length,
-            deleted,
-            errors: errors.length,
-            error_details: errors,
+            total_patients: patients.length,
+            total_deleted:  totalDeleted,
+            total_not_found: totalNotFound,
+            total_errors:   errors.length,
+            results,
         });
 
     } catch (err) {
         console.error('purge error:', err);
         return res.status(500).json({ ok: false, error: err.message });
     }
+}
+
+// ─── PURGAR UM PACIENTE ───────────────────────────────────────────────────────
+async function purgePatient(patientId, patientName, filenames) {
+    console.log(`\n🧹 Paciente ${patientId} (${patientName}): ${filenames.length} arquivo(s) a deletar`);
+
+    const result = { patient_id: patientId, patient_name: patientName, deleted: 0, not_found: 0, errors: [] };
+
+    // 1. Busca todos os uploads do paciente no Codental (parse do HTML)
+    let uploadsOnCodental;
+    try {
+        uploadsOnCodental = await listUploadsFromPage(patientId);
+    } catch (err) {
+        result.errors.push({ error: `Falha ao listar uploads: ${err.message}` });
+        return result;
+    }
+
+    console.log(`  📁 ${uploadsOnCodental.length} arquivo(s) no Codental`);
+
+    // 2. Para cada filename que queremos deletar, acha o upload_id no Codental
+    const filenameSet = new Set(filenames.map(f => f.toLowerCase()));
+
+    for (const upload of uploadsOnCodental) {
+        if (!filenameSet.has(upload.filename.toLowerCase())) continue;
+
+        try {
+            await deleteUpload(patientId, upload.id);
+            result.deleted++;
+            console.log(`  🗑 Deletado: ${upload.filename} [${upload.id}]`);
+        } catch (err) {
+            result.errors.push({ filename: upload.filename, upload_id: upload.id, error: err.message });
+            console.error(`  ❌ Erro: ${upload.filename} — ${err.message}`);
+        }
+    }
+
+    // Conta arquivos que estavam nos logs mas não foram encontrados no Codental
+    // (podem já ter sido deletados manualmente)
+    const foundFilenames = new Set(uploadsOnCodental.map(u => u.filename.toLowerCase()));
+    for (const fn of filenameSet) {
+        if (!foundFilenames.has(fn)) {
+            result.not_found++;
+            console.log(`  ⚠ Não encontrado no Codental (já deletado?): ${fn}`);
+        }
+    }
+
+    return result;
+}
+
+// ─── LISTAR UPLOADS DO PACIENTE VIA HTML ─────────────────────────────────────
+async function listUploadsFromPage(patientId) {
+    const s   = await sess();
+    const res = await fetch(`${APP_BASE}/patients/${patientId}/uploads`, {
+        headers: { 'Cookie': s.cookie, 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+
+    const uploads = [];
+    const re = /data-upload-id="(\d+)"[\s\S]*?data-url="([^"]+)"/g;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+        const id  = m[1];
+        const raw = m[2].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+        try {
+            const d = JSON.parse(raw);
+            if (d.filename) uploads.push({ id, filename: d.filename });
+        } catch {
+            const fn = raw.match(/"filename":"([^"]+)"/)?.[1];
+            if (fn) uploads.push({ id, filename: fn });
+        }
+    }
+    return uploads;
 }
 
 // ─── DELETAR (POST _method=delete, Rails Turbo) ───────────────────────────────
@@ -150,13 +236,9 @@ async function deleteUpload(patientId, uploadId) {
             'Referer':            `${APP_BASE}/patients/${patientId}/uploads`,
             'User-Agent':         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
-        body: new URLSearchParams({
-            _method: 'delete',
-            authenticity_token: s.csrf,
-        }).toString(),
+        body: new URLSearchParams({ _method: 'delete', authenticity_token: s.csrf }).toString(),
     });
     if (!r.ok && r.status !== 302 && r.status !== 204) {
-        const txt = await r.text().catch(() => '');
-        throw new Error(`HTTP ${r.status}: ${txt.slice(0, 100)}`);
+        throw new Error(`HTTP ${r.status}`);
     }
 }
