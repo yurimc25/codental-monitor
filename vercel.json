@@ -1,17 +1,15 @@
 {
   "crons": [
-    {
-      "path": "/api/run",
-      "schedule": "0 8 * * *"
-    }
+    { "path": "/api/run", "schedule": "0 8 * * *" }
   ],
   "functions": {
-    "api/run.js":              { "maxDuration": 300 },
-    "api/logs.js":             { "maxDuration": 30 },
-    "api/cleanup.js":          { "maxDuration": 120 },
-    "api/purge.js":            { "maxDuration": 300 },
-    "api/scan-duplicates.js":  { "maxDuration": 300 },
-    "api/simulate.js":         { "maxDuration": 300 }
+    "api/run.js":             { "maxDuration": 300 },
+    "api/logs.js":            { "maxDuration": 30  },
+    "api/cleanup.js":         { "maxDuration": 120 },
+    "api/purge.js":           { "maxDuration": 300 },
+    "api/scan-duplicates.js": { "maxDuration": 300 },
+    "api/simulate.js":        { "maxDuration": 300 },
+    "api/review.js":          { "maxDuration": 300 }
   },
   "rewrites": [
     { "source": "/", "destination": "/public/index.html" }
