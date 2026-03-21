@@ -63,23 +63,27 @@ export default async function handler(req, res) {
 
         const logs = await col.find(filter).toArray();
 
-        // Coleta todos os uploads registrados com ID do Codental
+        // Coleta todos os uploads com codental_upload_id (qualquer status exceto já purgado)
         const toDelete = [];
         for (const log of logs) {
+            if (!log.patient_id_codental) continue;
             for (const att of log.attachments || []) {
-                if (att.codental_upload_id && att.status === 'uploaded') {
-                    toDelete.push({
-                        log_id:           String(log._id),
-                        patient_id:       log.patient_id_codental,
-                        patient_name:     log.patient_name_codental || log.patient_name_extracted || '?',
-                        upload_id:        att.codental_upload_id,
-                        filename:         att.filename,
-                        email_subject:    log.subject,
-                        processed_at:     log.processed_at,
-                    });
-                }
+                const uid = att.codental_upload_id;
+                if (!uid) continue;
+                if (att.status === 'purged') continue; // já foi limpo antes
+                toDelete.push({
+                    log_id:       String(log._id),
+                    patient_id:   log.patient_id_codental,
+                    patient_name: log.patient_name_codental || log.patient_name_extracted || '?',
+                    upload_id:    String(uid),
+                    filename:     att.filename || '(sem nome)',
+                    email_subject: log.subject || '',
+                    processed_at:  log.processed_at,
+                });
             }
         }
+
+        console.log(`🔍 Logs: ${logs.length} | Uploads encontrados: ${toDelete.length}`);
 
         if (dryRun) {
             return res.status(200).json({
