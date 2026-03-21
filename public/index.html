@@ -123,6 +123,8 @@ body {
 .btn.primary:disabled { background: var(--bg3); border-color: var(--ln2); color: var(--t3); cursor: not-allowed; }
 .btn.ghost { border-color: transparent; }
 .btn.ghost:hover { border-color: var(--ln2); }
+.btn.danger { border-color: rgba(239,68,68,.3); color: var(--red); }
+.btn.danger:hover:not(:disabled) { background: var(--redd); border-color: var(--red); color: var(--red); }
 
 /* ── LAYOUT ──────────────────────────────────────────────────────────── */
 .layout {
@@ -655,6 +657,12 @@ body {
       <button class="btn" style="width:100%;justify-content:center" onclick="loadLogs()">
         Atualizar logs
       </button>
+      <button class="btn danger" style="width:100%;justify-content:center;margin-top:6px" id="cleanup-btn" onclick="runCleanup(false)">
+        🗑 Desfazer último upload
+      </button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:4px;font-size:9px;opacity:.6" onclick="runCleanup(true)">
+        Simular (dry run)
+      </button>
       <div class="date-field">
         <label class="date-label" for="since-input">Data retroativa (opcional)</label>
         <input
@@ -1085,6 +1093,37 @@ function setSort(el, s) {
   el.classList.add('on');
   sortOrder = s;
   loadLogs(1);
+}
+
+// ── CLEANUP ───────────────────────────────────────────────────────────────────
+async function runCleanup(dryRun) {
+  const label = dryRun ? 'Simulando...' : 'Desfazendo...';
+  const btn = document.getElementById('cleanup-btn');
+  if (btn) { btn.disabled = true; btn.textContent = label; }
+
+  try {
+    const r = await fetch(`${API}/api/cleanup`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dry_run: dryRun }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      if (dryRun) {
+        const names = (d.results || []).map(r => r.filename).join('\n');
+        toast(`Simulação: ${d.total} arquivo(s) seriam deletados\n${names}`, 'info');
+      } else {
+        toast(`✓ ${d.deleted} deletado(s), ${d.errors} erro(s) — ${d.patient || ''}`, d.errors ? 'err' : 'ok');
+        await loadLogs();
+      }
+    } else {
+      toast('Erro: ' + (d.error || 'desconhecido'), 'err');
+    }
+  } catch (e) {
+    toast('Falha: ' + e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 Desfazer último upload'; }
+  }
 }
 
 // ── DATE FIELD ───────────────────────────────────────────────────────────────
