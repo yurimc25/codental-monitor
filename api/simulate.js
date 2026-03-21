@@ -4,7 +4,7 @@
 
 import { google } from 'googleapis';
 import { getMessage, getHeaders, getBody, getAttachments, detectKeywords } from '../lib/gmail.js';
-import { searchPatients } from '../lib/codental.js';
+import { searchPatientsLocal, getCacheStatus } from '../lib/patientSearch.js';
 import { extractNames, bestMatch } from '../lib/extractor.js';
 import { getSettings, updateSettings } from '../lib/db.js';
 
@@ -94,9 +94,15 @@ export default async function handler(req, res) {
             entry.patient_extracted = candidates[0]?.name || null;
 
             if (candidates.length > 0) {
+                const cacheStatus = await getCacheStatus();
                 for (const cand of candidates) {
-                    const patients = await searchPatients(cand.name);
-                    const match    = bestMatch([cand], patients);
+                    let patients;
+                    if (cacheStatus.available) {
+                        patients = await searchPatientsLocal(cand.name, 10);
+                    } else {
+                        patients = await searchPatients(cand.name);
+                    }
+                    const match = bestMatch([cand], patients);
                     if (match) {
                         entry.patient_found = true;
                         entry.patient_id    = String(match.patient.id);
