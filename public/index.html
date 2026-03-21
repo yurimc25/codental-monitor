@@ -732,10 +732,15 @@ body {
   <div class="topbar-right">
     <span class="pill" id="cron-pill">cron ·/15 min</span>
     <button class="btn ghost" id="connect-btn" onclick="connectGmail()" style="display:none">Conectar Gmail</button>
-    <button class="btn primary" id="run-btn" onclick="runNow()">
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
-      Processar agora
-    </button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <input id="run-days-top" type="number" value="2" min="1" max="90" title="Quantos dias retroativos processar"
+        style="width:48px;background:var(--bg2);border:1px solid var(--ln2);border-radius:4px;padding:5px 6px;color:var(--t0);font-family:var(--mono);font-size:11px;text-align:center;outline:none">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">dias</span>
+      <button class="btn primary" id="run-btn" onclick="runNow()">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+        Processar agora
+      </button>
+    </div>
   </div>
 </div>
 
@@ -759,15 +764,24 @@ body {
 
     <div class="sb-section">
       <div class="sb-label">Controle</div>
-      <button class="btn primary" style="width:100%;justify-content:center;margin-bottom:6px" id="run-btn2" onclick="runNow()">
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
-        Processar agora
-      </button>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <input id="run-days-sb" type="number" value="2" min="1" max="90"
+          style="width:48px;background:var(--bg2);border:1px solid var(--ln2);border-radius:4px;padding:6px;color:var(--t0);font-family:var(--mono);font-size:11px;text-align:center;outline:none;flex-shrink:0"
+          oninput="document.getElementById('run-days-top').value=this.value">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">dias</span>
+        <button class="btn primary" style="flex:1;justify-content:center" id="run-btn2" onclick="runNow()">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+          Processar
+        </button>
+      </div>
       <button class="btn" style="width:100%;justify-content:center" onclick="loadLogs()">
         Atualizar logs
       </button>
       <button class="btn" style="width:100%;justify-content:center;margin-top:6px;color:var(--vio);border-color:rgba(167,139,250,.3)" onclick="openSimulate()">
         🧪 Simular forçado
+      </button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:6px;color:var(--amb);border-color:rgba(245,158,11,.3)" onclick="openReview()">
+        ⏳ Revisar pendências <span id="review-badge" style="display:none;background:var(--amb);color:#000;border-radius:3px;padding:0 5px;font-size:9px;margin-left:4px"></span>
       </button>
       <button class="btn danger" style="width:100%;justify-content:center;margin-top:6px" id="cleanup-btn" onclick="runCleanup(false)">
         🗑 Desfazer último upload
@@ -816,6 +830,7 @@ body {
         <button class="chip" data-s="partial" onclick="setFilter(this,'partial')">Parcial</button>
         <button class="chip" data-s="failed" onclick="setFilter(this,'failed')">Erro</button>
         <button class="chip" data-s="no_patient" onclick="setFilter(this,'no_patient')">Sem paciente</button>
+        <button class="chip" data-s="pending_review" onclick="setFilter(this,'pending_review')" id="pending-chip" style="color:var(--amb);border-color:rgba(245,158,11,.3)">⏳ Pendentes <span id="pending-count"></span></button>
       </div>
     </div>
 
@@ -880,6 +895,21 @@ body {
   </div>
 </div>
 
+
+<!-- REVIEW OVERLAY -->
+<div class="sim-overlay" id="review-overlay">
+  <div class="sim-header">
+    <span class="sim-title">⏳ Revisão de pendências</span>
+    <button class="sim-close" onclick="closeReview()">✕ Fechar</button>
+  </div>
+  <div class="sim-stats" id="review-stats" style="display:none"></div>
+  <div class="sim-body" id="review-body">
+    <div style="display:flex;align-items:center;justify-content:center;height:200px;font-family:var(--mono);font-size:11px;color:var(--t2)">
+      Carregando pendências...
+    </div>
+  </div>
+</div>
+
 <!-- SIMULATE OVERLAY -->
 <div class="sim-overlay" id="sim-overlay">
   <div class="sim-header">
@@ -915,7 +945,7 @@ let running = false;
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
   checkURLParams();
-  await Promise.all([loadStats(), checkGmail()]);
+  await Promise.all([loadStats(), checkGmail(), loadPendingCount()]);
   await loadLogs();
   cronTimer();
   setInterval(cronTimer, 1000);
@@ -983,6 +1013,10 @@ async function runNow() {
   if (running) return;
 
   // Valida data antes de disparar
+  // Sync dias entre topbar e sidebar
+  const daysTop = document.getElementById('run-days-top');
+  const daysSb  = document.getElementById('run-days-sb');
+  if (daysTop && daysSb) daysTop.value = daysSb.value;
   const sinceRaw = document.getElementById('since-input')?.value.trim() || '';
   if (sinceRaw && !parsePtDate(sinceRaw)) {
     toast('Data inválida. Use: "15 de março de 2025"', 'err');
@@ -992,7 +1026,8 @@ async function runNow() {
   running = true;
   setRunning(true);
 
-  const body = sinceRaw ? JSON.stringify({ since_date: sinceRaw }) : '{}';
+  const days = parseInt(document.getElementById('run-days-top')?.value) || 2;
+  const body = JSON.stringify({ since_date: sinceRaw || undefined, days });
 
   try {
     const r = await fetch(`${API}/api/run`, {
@@ -1007,7 +1042,7 @@ async function runNow() {
         : '';
       const msg = `${d.emails_found} emails${datePart} · ${d.att_uploaded} enviados · ${d.att_duplicate} duplicatas`;
       toast(msg, 'ok');
-      await Promise.all([loadStats(), loadLogs()]);
+      await Promise.all([loadStats(), loadLogs(), loadPendingCount()]);
     } else {
       toast('Erro: ' + (d.error || 'desconhecido'), 'err');
     }
@@ -1302,6 +1337,136 @@ function setSort(el, s) {
   loadLogs(1);
 }
 
+
+
+// ── REVIEW ───────────────────────────────────────────────────────────────────
+let _pendingItems = [];
+
+async function loadPendingCount() {
+  try {
+    const r = await fetch(`${API}/api/review`, { headers: { 'x-api-key': API_KEY } });
+    const d = await r.json();
+    const n = d.total || 0;
+    _pendingItems = d.items || [];
+    document.getElementById('pending-count').textContent = n ? `(${n})` : '';
+    const badge = document.getElementById('review-badge');
+    if (n > 0) { badge.style.display = ''; badge.textContent = n; }
+    else badge.style.display = 'none';
+  } catch(_) {}
+}
+
+function openReview() {
+  document.getElementById('review-overlay').classList.add('show');
+  renderReview();
+}
+function closeReview() {
+  document.getElementById('review-overlay').classList.remove('show');
+}
+
+function renderReview() {
+  const body  = document.getElementById('review-body');
+  const stats = document.getElementById('review-stats');
+
+  if (!_pendingItems.length) {
+    stats.style.display = 'none';
+    body.innerHTML = `<div style="text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:var(--t2)">Nenhuma pendência para revisar</div>`;
+    return;
+  }
+
+  stats.style.display = 'flex';
+  stats.innerHTML = `<div class="sim-stat a"><span class="n">${_pendingItems.length}</span>pendências</div>`;
+
+  let h = '';
+  for (const item of _pendingItems) {
+    const sug = item.pending_suggestion;
+    const atts = (item.attachments || []).filter(a => a.status === 'uploaded');
+    h += `<div class="sim-email" id="rv-${esc(String(item._id))}">
+      <div class="sim-email-head">
+        <div>
+          <div class="sim-subject">${esc(item.subject || '(sem assunto)')}</div>
+          <div class="sim-meta">${esc(shortFrom(item.from))} · ${item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '?'}</div>
+          <div class="sim-meta" style="margin-top:3px">
+            <span style="color:var(--t1)">Extraído:</span> <span style="color:var(--amb)">${esc(item.patient_name_extracted || '?')}</span>
+          </div>
+          ${sug ? `<div class="sim-meta" style="margin-top:2px">
+            <span style="color:var(--t1)">Sugestão (${(sug.score*100).toFixed(0)}%):</span>
+            <span style="color:var(--blu)">${esc(sug.patient_name)}</span>
+            <span style="color:var(--t3)">[ID ${sug.patient_id}]</span>
+          </div>` : '<div class="sim-meta" style="color:var(--red);margin-top:2px">Sem sugestão de paciente</div>'}
+          <div class="sim-meta" style="margin-top:2px">${atts.length} anexo(s) aguardando envio</div>
+        </div>
+        <div class="sim-badges" style="flex-direction:column;gap:5px;align-items:flex-end">
+          ${sug ? `<button class="pill-up" style="cursor:pointer;padding:4px 10px;font-size:10px" onclick="confirmReview('${esc(String(item._id))}','${sug.patient_id}','${esc(sug.patient_name)}')">✓ Confirmar</button>` : ''}
+          <button class="pill-dup" style="cursor:pointer;padding:4px 10px;font-size:10px" onclick="openCreatePatient('${esc(String(item._id))}','${esc(item.patient_name_extracted||'')}')">+ Criar paciente</button>
+          <button class="pill-nop" style="cursor:pointer;padding:4px 10px;font-size:10px" onclick="rejectReview('${esc(String(item._id))}')">✕ Ignorar</button>
+        </div>
+      </div>
+      <div class="sim-atts">
+        ${atts.map(a => `<div class="sim-att"><span style="color:var(--t2)">📎</span><span class="fn">${esc(a.filename)}</span><span class="sz">${(a.size_bytes/1024).toFixed(1)}KB</span><span class="pill-dup">aguardando</span></div>`).join('')}
+      </div>
+    </div>`;
+  }
+  body.innerHTML = h;
+}
+
+async function confirmReview(logId, patientId, patientName) {
+  const el = document.getElementById(`rv-${logId}`);
+  if (el) el.style.opacity = '0.5';
+  try {
+    const r = await fetch(`${API}/api/review`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ log_id: logId, action: 'confirm', patient_id: patientId }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(`✓ Confirmado: ${patientName} — ${d.results?.filter(r=>r.status==='uploaded').length || 0} arquivo(s) enviados`, 'ok');
+      _pendingItems = _pendingItems.filter(i => String(i._id) !== logId);
+      renderReview(); loadPendingCount(); loadLogs();
+    } else { toast('Erro: ' + d.error, 'err'); if (el) el.style.opacity = '1'; }
+  } catch(e) { toast(e.message, 'err'); if (el) el.style.opacity = '1'; }
+}
+
+async function rejectReview(logId) {
+  const el = document.getElementById(`rv-${logId}`);
+  if (el) el.style.opacity = '0.5';
+  try {
+    const r = await fetch(`${API}/api/review`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ log_id: logId, action: 'reject' }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('Marcado como sem paciente', '');
+      _pendingItems = _pendingItems.filter(i => String(i._id) !== logId);
+      renderReview(); loadPendingCount();
+    } else toast('Erro: ' + d.error, 'err');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function openCreatePatient(logId, extractedName) {
+  const name  = prompt('Nome completo do paciente:', extractedName || '');
+  if (!name) return;
+  const phone = prompt('Telefone (opcional):', '');
+  createPatient(logId, name, phone);
+}
+
+async function createPatient(logId, name, phone) {
+  try {
+    const r = await fetch(`${API}/api/review`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ log_id: logId, action: 'create', patient_name: name, patient_phone: phone }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(`Paciente criado: ${name} (ID ${d.patient_id}). Confirme para enviar os anexos.`, 'ok');
+      // Agora confirma automaticamente
+      if (d.patient_id) await confirmReview(logId, d.patient_id, name);
+    } else toast('Erro: ' + d.error, 'err');
+  } catch(e) { toast(e.message, 'err'); }
+}
 
 // ── SIMULATE ─────────────────────────────────────────────────────────────────
 function openSimulate() {

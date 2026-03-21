@@ -57,8 +57,11 @@ export default async function handler(req, res) {
         }
     }
 
+    // Lê número de dias do body (padrão 2 para cron, configurável no manual)
+    const days = parseInt(req.body?.days) || 2;
+
     try {
-        const summary = await run({ sinceDate });
+        const summary = await run({ sinceDate, days, includeRead: true });
         return res.status(200).json({ ok: true, ran_at: new Date().toISOString(), ...summary });
     } catch (err) {
         console.error(err);
