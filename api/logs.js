@@ -3,7 +3,7 @@ import { getLogs, getStats } from '../lib/db.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') return res.status(405).end();
-    const { page = 1, status, search, stats } = req.query;
+    const { page = 1, status, search, stats, sort = 'newest' } = req.query;
 
     try {
         if (stats === '1') {
@@ -14,6 +14,7 @@ export default async function handler(req, res) {
             limit: 25,
             status: status || null,
             search: search || null,
+            sort: sort === 'oldest' ? 'oldest' : 'newest',
         });
         return res.status(200).json(data);
     } catch (err) {

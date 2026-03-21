@@ -551,6 +551,29 @@ body {
 .date-hint.ok { color: var(--grn); }
 .date-hint.err { color: var(--red); }
 
+
+/* sort controls */
+.sort-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.sort-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border: 1px solid var(--ln2);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .03em;
+}
+.sort-btn:hover { color: var(--t0); border-color: var(--t3); }
+.sort-btn.on { color: var(--blu); border-color: rgba(96,165,250,.4); background: var(--blud); }
+
 /* ── OAUTH NOTICE ────────────────────────────────────────────────────── */
 .oauth-notice {
   background: var(--ambd);
@@ -666,6 +689,14 @@ body {
     </div>
 
     <div class="sb-section">
+      <div class="sb-label">Ordenar por</div>
+      <div class="sort-row">
+        <button class="sort-btn on" data-sort="newest" onclick="setSort(this,'newest')">Mais recentes</button>
+        <button class="sort-btn" data-sort="oldest" onclick="setSort(this,'oldest')">Mais antigos</button>
+      </div>
+    </div>
+
+    <div class="sb-section">
       <div class="sb-label">Keywords ativas</div>
       <div class="kw-wrap" id="kw-wrap">
         <span class="kw">tomografia</span>
@@ -712,7 +743,7 @@ body {
 const API = ''; // mesma origin
 const API_KEY = '@Deuse10';
 
-let filter = '', page = 1, searchQ = '';
+let filter = '', page = 1, searchQ = '', sortOrder = 'newest';
 let searchTimer = null;
 let running = false;
 
@@ -836,6 +867,7 @@ async function loadLogs(p = page) {
     const params = new URLSearchParams({ page, limit: 25 });
     if (filter) params.set('status', filter);
     if (searchQ) params.set('search', searchQ);
+    params.set('sort', sortOrder);
     const r = await fetch(`${API}/api/logs?${params}`);
     const d = await r.json();
     renderLogs(d.logs || []);
@@ -1045,6 +1077,14 @@ function toast(msg, type = '') {
   el.className = 'show ' + type;
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// ── SORT ─────────────────────────────────────────────────────────────────────
+function setSort(el, s) {
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  sortOrder = s;
+  loadLogs(1);
 }
 
 // ── DATE FIELD ───────────────────────────────────────────────────────────────
