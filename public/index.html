@@ -616,6 +616,75 @@ body {
 .dup-keep { color: var(--grn); }
 .dup-remove { color: var(--red); }
 
+
+/* simulate panel */
+.sim-overlay {
+  position: fixed; inset: 0; background: rgba(8,8,9,.92);
+  z-index: 200; display: flex; flex-direction: column;
+  padding: 24px; gap: 0; display: none;
+}
+.sim-overlay.show { display: flex; }
+.sim-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; flex-shrink: 0;
+}
+.sim-title { font-family: var(--mono); font-size: 13px; color: var(--t0); letter-spacing:.04em; }
+.sim-close {
+  font-family: var(--mono); font-size: 11px; padding: 5px 12px;
+  border: 1px solid var(--ln2); border-radius: 4px; background: transparent;
+  color: var(--t1); cursor: pointer;
+}
+.sim-close:hover { color: var(--t0); border-color: var(--t3); }
+.sim-stats {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; flex-shrink: 0;
+}
+.sim-stat {
+  font-family: var(--mono); font-size: 10px; padding: 5px 10px;
+  border-radius: 4px; border: 1px solid var(--ln2); background: var(--bg2);
+}
+.sim-stat .n { font-size: 18px; font-weight: 600; display: block; line-height: 1.2; }
+.sim-stat.g .n { color: var(--grn); }
+.sim-stat.a .n { color: var(--amb); }
+.sim-stat.r .n { color: var(--red); }
+.sim-stat.b .n { color: var(--blu); }
+.sim-body {
+  flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ln2) transparent;
+}
+.sim-email {
+  border: 1px solid var(--ln); border-radius: 6px; margin-bottom: 10px;
+  overflow: hidden;
+}
+.sim-email-head {
+  padding: 10px 14px; background: var(--bg2);
+  border-bottom: 1px solid var(--ln);
+  display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start;
+}
+.sim-subject { font-size: 12px; font-weight: 500; color: var(--t0); margin-bottom: 3px; }
+.sim-meta { font-family: var(--mono); font-size: 10px; color: var(--t2); }
+.sim-badges { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; }
+.sim-atts { padding: 0; }
+.sim-att {
+  display: grid; grid-template-columns: 16px 1fr auto auto;
+  gap: 8px; align-items: center;
+  padding: 7px 14px; border-bottom: 1px solid var(--ln); font-family: var(--mono); font-size: 10px;
+}
+.sim-att:last-child { border-bottom: none; }
+.sim-att .fn { color: var(--t0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sim-att .sz { color: var(--t2); white-space: nowrap; }
+.sim-att .why { color: var(--t2); font-size: 9px; grid-column: 2; margin-top: -4px; }
+.pill-up  { background: var(--grnd); color: var(--grn); border: 1px solid rgba(34,197,94,.25); padding: 1px 7px; border-radius: 4px; font-family: var(--mono); font-size: 9px; white-space: nowrap; }
+.pill-dup { background: var(--ambd); color: var(--amb); border: 1px solid rgba(245,158,11,.25); padding: 1px 7px; border-radius: 4px; font-family: var(--mono); font-size: 9px; white-space: nowrap; }
+.pill-nop { background: var(--bg3); color: var(--t2); border: 1px solid var(--ln2); padding: 1px 7px; border-radius: 4px; font-family: var(--mono); font-size: 9px; white-space: nowrap; }
+.pill-read { background: var(--blud); color: var(--blu); border: 1px solid rgba(96,165,250,.2); padding: 1px 7px; border-radius: 4px; font-family: var(--mono); font-size: 9px; }
+.pill-unread { background: var(--viod); color: var(--vio); border: 1px solid rgba(167,139,250,.2); padding: 1px 7px; border-radius: 4px; font-family: var(--mono); font-size: 9px; }
+.sim-days-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sim-days-input {
+  background: var(--bg2); border: 1px solid var(--ln2); border-radius: 4px;
+  padding: 4px 8px; color: var(--t0); font-family: var(--mono); font-size: 11px;
+  width: 60px; outline: none; text-align: center;
+}
+.sim-days-input:focus { border-color: var(--t3); }
+
 /* ── OAUTH NOTICE ────────────────────────────────────────────────────── */
 .oauth-notice {
   background: var(--ambd);
@@ -696,6 +765,9 @@ body {
       </button>
       <button class="btn" style="width:100%;justify-content:center" onclick="loadLogs()">
         Atualizar logs
+      </button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:6px;color:var(--vio);border-color:rgba(167,139,250,.3)" onclick="openSimulate()">
+        🧪 Simular forçado
       </button>
       <button class="btn danger" style="width:100%;justify-content:center;margin-top:6px" id="cleanup-btn" onclick="runCleanup(false)">
         🗑 Desfazer último upload
@@ -804,6 +876,28 @@ body {
     <div class="pag" id="pag" style="display:none">
       <span class="pag-info" id="pag-info"></span>
       <div class="pag-btns" id="pag-btns"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SIMULATE OVERLAY -->
+<div class="sim-overlay" id="sim-overlay">
+  <div class="sim-header">
+    <span class="sim-title">Simulação de processamento</span>
+    <button class="sim-close" onclick="closeSimulate()">✕ Fechar</button>
+  </div>
+  <div class="sim-days-row">
+    <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">Últimos</span>
+    <input class="sim-days-input" id="sim-days" type="number" value="7" min="1" max="90">
+    <span style="font-family:var(--mono);font-size:10px;color:var(--t2)">dias</span>
+    <button class="btn primary" style="padding:5px 14px;font-size:10px" id="sim-run-btn" onclick="runSimulate()">
+      ▶ Executar simulação
+    </button>
+  </div>
+  <div class="sim-stats" id="sim-stats" style="display:none"></div>
+  <div class="sim-body" id="sim-body">
+    <div style="display:flex;align-items:center;justify-content:center;height:200px;font-family:var(--mono);font-size:11px;color:var(--t2)">
+      Configure os dias acima e clique em Executar simulação
     </div>
   </div>
 </div>
@@ -1206,6 +1300,100 @@ function setSort(el, s) {
   el.classList.add('on');
   sortOrder = s;
   loadLogs(1);
+}
+
+
+// ── SIMULATE ─────────────────────────────────────────────────────────────────
+function openSimulate() {
+  document.getElementById('sim-overlay').classList.add('show');
+}
+function closeSimulate() {
+  document.getElementById('sim-overlay').classList.remove('show');
+}
+
+async function runSimulate() {
+  const days = parseInt(document.getElementById('sim-days').value) || 7;
+  const btn  = document.getElementById('sim-run-btn');
+  const body = document.getElementById('sim-body');
+  const stats= document.getElementById('sim-stats');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Processando...';
+  stats.style.display = 'none';
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:40px;font-family:var(--mono);font-size:11px;color:var(--t2)"><div class="spinner"></div> Buscando emails dos últimos ${days} dias e verificando pacientes...</div>`;
+
+  try {
+    const r = await fetch(`${API}/api/simulate`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ days }),
+    });
+    const d = await r.json();
+
+    if (!d.ok) { body.innerHTML = `<div style="color:var(--red);font-family:var(--mono);font-size:11px;padding:20px">${esc(d.error)}</div>`; return; }
+
+    // Stats bar
+    const s = d.stats;
+    stats.style.display = 'flex';
+    stats.innerHTML = `
+      <div class="sim-stat b"><span class="n">${s.total_emails}</span>emails</div>
+      <div class="sim-stat b"><span class="n">${s.read}</span>lidos</div>
+      <div class="sim-stat"><span class="n" style="color:var(--vio)">${s.unread}</span>não lidos</div>
+      <div class="sim-stat b"><span class="n">${s.with_patient}</span>com paciente</div>
+      <div class="sim-stat r"><span class="n">${s.no_patient}</span>sem paciente</div>
+      <div class="sim-stat g"><span class="n">${s.would_upload}</span>seriam enviados</div>
+      <div class="sim-stat a"><span class="n">${s.would_skip}</span>duplicatas</div>
+    `;
+
+    // Email list
+    let html2 = '';
+    for (const email of d.emails) {
+      const upCount  = email.attachments.filter(a => a.action === 'would_upload').length;
+      const dupCount = email.attachments.filter(a => a.action === 'would_skip').length;
+      const nopCount = email.attachments.filter(a => a.action === 'no_patient').length;
+
+      html2 += `<div class="sim-email">
+        <div class="sim-email-head">
+          <div>
+            <div class="sim-subject">${esc(email.subject || '(sem assunto)')}</div>
+            <div class="sim-meta">${esc(shortFrom(email.from))} · ${email.date ? new Date(email.date).toLocaleDateString('pt-BR') : '?'}</div>
+            ${email.patient_name ? `<div class="sim-meta" style="color:var(--blu);margin-top:2px">👤 ${esc(email.patient_name)}</div>` : `<div class="sim-meta" style="color:var(--red);margin-top:2px">? ${esc(email.patient_extracted || 'paciente não identificado')}</div>`}
+          </div>
+          <div class="sim-badges">
+            <span class="${email.is_read ? 'pill-read' : 'pill-unread'}">${email.is_read ? 'lido' : 'não lido'}</span>
+            ${upCount  ? `<span class="pill-up">${upCount} enviar</span>` : ''}
+            ${dupCount ? `<span class="pill-dup">${dupCount} dup</span>` : ''}
+            ${nopCount ? `<span class="pill-nop">${nopCount} sem pac.</span>` : ''}
+          </div>
+        </div>`;
+
+      if (email.attachments.length) {
+        html2 += `<div class="sim-atts">`;
+        for (const att of email.attachments) {
+          const icon = att.action === 'would_upload' ? '↑' : att.action === 'would_skip' ? '≡' : '✕';
+          const pill = att.action === 'would_upload' ? 'pill-up' : att.action === 'would_skip' ? 'pill-dup' : 'pill-nop';
+          const label= att.action === 'would_upload' ? 'enviar' : att.action === 'would_skip' ? 'duplicata' : 'sem paciente';
+          html2 += `<div class="sim-att">
+            <span style="color:var(--t2)">${icon}</span>
+            <span class="fn">${esc(att.filename)}</span>
+            <span class="sz">${att.size_kb}KB</span>
+            <span class="${pill}">${label}</span>
+            ${att.reason ? `<span class="why">${esc(att.reason)}</span>` : ''}
+          </div>`;
+        }
+        html2 += `</div>`;
+      }
+      html2 += `</div>`;
+    }
+
+    body.innerHTML = html2 || `<div style="font-family:var(--mono);font-size:11px;color:var(--t2);padding:40px;text-align:center">Nenhum email encontrado no período</div>`;
+
+  } catch(e) {
+    body.innerHTML = `<div style="color:var(--red);font-family:var(--mono);font-size:11px;padding:20px">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Executar simulação';
+  }
 }
 
 // ── PURGE ────────────────────────────────────────────────────────────────────
