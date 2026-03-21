@@ -9,7 +9,8 @@
     "api/purge.js":           { "maxDuration": 300 },
     "api/scan-duplicates.js": { "maxDuration": 300 },
     "api/simulate.js":        { "maxDuration": 300 },
-    "api/review.js":          { "maxDuration": 300 }
+    "api/review.js":          { "maxDuration": 300 },
+    "api/sync-patients.js":   { "maxDuration": 120 }
   },
   "rewrites": [
     { "source": "/", "destination": "/public/index.html" }

@@ -855,6 +855,16 @@ body {
     </div>
 
     <div class="sb-section">
+      <div class="sb-label">Base de pacientes</div>
+      <div id="sync-status" style="font-family:var(--mono);font-size:10px;color:var(--t2);margin-bottom:8px;line-height:1.6">
+        Verificando...
+      </div>
+      <button class="btn" style="width:100%;justify-content:center" id="sync-btn" onclick="syncPatients()">
+        ↻ Sincronizar pacientes
+      </button>
+    </div>
+
+    <div class="sb-section">
       <div class="sb-label">Keywords ativas</div>
       <div class="kw-wrap" id="kw-wrap">
         <span class="kw">tomografia</span>
@@ -945,7 +955,7 @@ let running = false;
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
   checkURLParams();
-  await Promise.all([loadStats(), checkGmail(), loadPendingCount()]);
+  await Promise.all([loadStats(), checkGmail(), loadPendingCount(), loadSyncStatus()]);
   await loadLogs();
   cronTimer();
   setInterval(cronTimer, 1000);
@@ -1338,6 +1348,47 @@ function setSort(el, s) {
 }
 
 
+
+// ── SYNC PATIENTS ────────────────────────────────────────────────────────────
+async function loadSyncStatus() {
+  try {
+    const r = await fetch(`${API}/api/sync-patients`, { headers: { 'x-api-key': API_KEY } });
+    const d = await r.json();
+    const el = document.getElementById('sync-status');
+    if (d.ok) {
+      const date = d.last_sync ? fmtDate(d.last_sync) : 'nunca';
+      const stale = d.last_sync && (Date.now() - new Date(d.last_sync).getTime()) > 7*24*60*60*1000;
+      el.innerHTML = `<span style="color:${stale?'var(--amb)':'var(--grn)'}">${d.total_patients} pacientes</span><br>Última sync: ${date}${stale?' <span style="color:var(--amb)">(desatualizado)</span>':''}`;
+    }
+  } catch(_) {}
+}
+
+async function syncPatients() {
+  const btn = document.getElementById('sync-btn');
+  const el  = document.getElementById('sync-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Sincronizando...';
+  el.innerHTML = '<span style="color:var(--t2)">Baixando CSV do Codental...</span>';
+  try {
+    const r = await fetch(`${API}/api/sync-patients`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY },
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(`✓ ${d.total} pacientes sincronizados`, 'ok');
+      await loadSyncStatus();
+    } else {
+      toast('Erro: ' + d.error, 'err');
+      el.innerHTML = `<span style="color:var(--red)">${esc(d.error)}</span>`;
+    }
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Sincronizar pacientes';
+  }
+}
 
 // ── REVIEW ───────────────────────────────────────────────────────────────────
 let _pendingItems = [];
