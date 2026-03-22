@@ -1,6 +1,7 @@
 // api/run.js — Disparo manual e cron
 import { run } from '../lib/processor.js';
 import { cors } from '../lib/cors.js';
+import { saveCheckpoint, getCheckpoint, clearCheckpoint } from '../lib/db.js';
 export const config = { maxDuration: 300 };
 
 // Meses em português → número (0-based)
