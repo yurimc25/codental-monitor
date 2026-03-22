@@ -13,19 +13,18 @@
     "api/gmail/auth.js":       { "maxDuration": 10  },
     "api/gmail/callback.js":   { "maxDuration": 10  }
   },
-  "routes": [
+  "rewrites": [
+    { "source": "/", "destination": "/public/index.html" }
+  ],
+  "headers": [
     {
-      "src": "/api/(.*)",
-      "methods": ["OPTIONS"],
-      "dest": "/api/options",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "x-api-key, Content-Type, Authorization",
-        "Access-Control-Max-Age": "86400"
-      }
-    },
-    { "src": "/", "dest": "/public/index.html" },
-    { "src": "/api/(.*)", "dest": "/api/$1" }
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin",  "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "x-api-key, Content-Type, Authorization" },
+        { "key": "Access-Control-Max-Age",       "value": "86400" }
+      ]
+    }
   ]
 }
