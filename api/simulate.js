@@ -4,7 +4,7 @@
 
 import { google } from 'googleapis';
 import { getMessage, getHeaders, getBody, getAttachments, detectKeywords } from '../lib/gmail.js';
-import { searchPatientsWithFallback, searchPatientsLocal, getCacheStatus } from '../lib/patientSearch.js';
+import { searchPatientsWithFallback, searchPatientsLocal, searchPatientsViaAPI, getCacheStatus } from '../lib/patientSearch.js';
 import { searchPatients } from '../lib/codental.js';
 import { extractNames, bestMatch } from '../lib/extractor.js';
 import { getSettings, updateSettings } from '../lib/db.js';
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
                         patients = await searchPatientsLocal(cand.name, 20);
                         src = 'local';
                     } else if (searchSource === 'api') {
-                        patients = await searchPatients(cand.name);
+                        patients = await searchPatientsViaAPI(cand.name);
                         src = 'api';
                     } else {
                         // auto: local com fallback para API
@@ -114,7 +114,7 @@ export default async function handler(req, res) {
                     if (match) {
                         entry.patient_found  = true;
                         entry.patient_id     = String(match.patient.id);
-                        entry.patient_name   = match.patient.name || match.patient.full_name || cand.name;
+                        entry.patient_name   = match.patient.fullName || match.patient.name || match.patient.full_name || cand.name;
                         entry.patient_source = src;
                         break;
                     }
