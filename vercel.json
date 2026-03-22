@@ -11,7 +11,8 @@
     "api/simulate.js":         { "maxDuration": 300 },
     "api/review.js":           { "maxDuration": 300 },
     "api/sync-patients.js":    { "maxDuration": 120 },
-    "api/import-patients.js":  { "maxDuration": 60  }
+    "api/import-patients.js":  { "maxDuration": 60  },
+    "api/debug-search.js":     { "maxDuration": 30  }
   },
   "rewrites": [
     { "source": "/", "destination": "/public/index.html" }
