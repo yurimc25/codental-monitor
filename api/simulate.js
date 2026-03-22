@@ -5,6 +5,7 @@
 import { google } from 'googleapis';
 import { getMessage, getHeaders, getBody, getAttachments, detectKeywords } from '../lib/gmail.js';
 import { searchPatientsWithFallback, searchPatientsLocal, getCacheStatus } from '../lib/patientSearch.js';
+import { searchPatients } from '../lib/codental.js';
 import { extractNames, bestMatch } from '../lib/extractor.js';
 import { getSettings, updateSettings } from '../lib/db.js';
 
