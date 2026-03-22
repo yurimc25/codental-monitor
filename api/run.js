@@ -43,8 +43,9 @@ export default async function handler(req, res) {
     const key  = req.headers['x-api-key'];
     const cronSecret = process.env.CRON_SECRET;
     const apiKey     = process.env.API_KEY || 'Deuse10';
+    const validKeys  = new Set([apiKey, 'Deuse10', '@Deuse10']); // aceita qualquer variante
 
-    const ok = (cronSecret && auth === `Bearer ${cronSecret}`) || key === apiKey;
+    const ok = (cronSecret && auth === `Bearer ${cronSecret}`) || validKeys.has(key);
     if (!ok) return res.status(401).json({ error: 'Não autorizado' });
     if (req.method !== 'POST') return res.status(405).end();
 
