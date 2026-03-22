@@ -14,8 +14,8 @@ import { ObjectId } from 'mongodb';
 
 export const config = { maxDuration: 300 };
 
-const APP_BASE  = 'https://odonto-on-face.codental.com.br';
-const LOGIN_URL = 'https://www.codental.com.br/login';
+const APP_BASE  = 'https://app.codental.com.br';
+const LOGIN_URL = 'https://app.codental.com.br/login';
 import crypto from 'crypto';
 
 // ─── SESSION (reutiliza padrão já estabelecido) ────────────────────────────────
