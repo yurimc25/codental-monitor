@@ -9,7 +9,7 @@
 import { db } from '../lib/db.js';
 import { cors } from '../lib/cors.js';
 import { uploadFile, searchPatients } from '../lib/codental.js';
-import { downloadAttachment, getMessage, getHeaders, getAttachments } from '../lib/gmail.js';
+import { downloadAttachment, getMessage, getHeaders, getAttachments, findPhoneInContacts } from '../lib/gmail.js';
 import { ObjectId } from 'mongodb';
 
 export const config = { maxDuration: 300 };
@@ -113,7 +113,7 @@ export default async function handler(req, res) {
 
     if (req.method !== 'POST') return res.status(405).end();
 
-    const { log_id, action, patient_id, patient_name, patient_phone } = req.body || {};
+    const { log_id, action, patient_id, patient_name, patient_phone, patient_cpf } = req.body || {};
     if (!log_id || !action) return res.status(400).json({ error: 'log_id e action são obrigatórios' });
 
     const log = await col.findOne({ _id: new ObjectId(log_id) });
@@ -179,16 +179,35 @@ export default async function handler(req, res) {
         if (!patient_name) return res.status(400).json({ error: 'patient_name obrigatório' });
         const s = await sess();
 
+        // Busca telefone e CPF nos contatos do Google se não informados manualmente
+        let resolvedPhone = patient_phone || null;
+        let contactCPF    = null;
+
+        console.log(`📞 Buscando nos contatos do Google para: ${patient_name}`);
+        const contactResult = await findPhoneInContacts(patient_name);
+        if (contactResult) {
+            if (!resolvedPhone && contactResult.phone) resolvedPhone = contactResult.phone;
+            if (contactResult.cpf) contactCPF = contactResult.cpf;
+            console.log(`📞 Contato: tel=${resolvedPhone}, CPF=${contactCPF}`);
+        } else {
+            console.log(`📞 Nenhum contato encontrado`);
+        }
+
+        // Usa CPF: request manual → contato do Google → log extraído do email
+        const resolvedCPF = patient_cpf || contactCPF || log.cpf_extracted || log.pending_suggestion?.cpf || null;
+        if (resolvedCPF) console.log(`📋 CPF para criar paciente: ${resolvedCPF}`);
+
         // Cria paciente no Codental
-        // Campo correto é patient[full_name] conforme HTML do formulário /patients/new
         const body = new URLSearchParams();
         body.append('authenticity_token', s.csrf);
         body.append('patient[full_name]', patient_name);
-        if (patient_phone) {
-            // Remove formatação, mantém só dígitos + country code
-            const digits = patient_phone.replace(/\D/g, '');
-            body.append('patient[cellphone_formated]', patient_phone);
+        if (resolvedPhone) {
+            body.append('patient[cellphone_formated]', resolvedPhone);
             body.append('patient[cellphone_country_code]', '+55');
+        }
+        if (resolvedCPF) {
+            // Remove formatação para enviar só os dígitos
+            body.append('patient[cpf]', resolvedCPF.replace(/\D/g, ''));
         }
 
         const cr = await fetch(`${APP_BASE}/patients`, {
@@ -255,8 +274,10 @@ export default async function handler(req, res) {
             ok: true,
             patient_id: newId,
             patient_name,
+            patient_phone: resolvedPhone || null,
+            patient_cpf: resolvedCPF || null,
             uploads: uploadResults,
-            message: `Paciente criado e ${uploaded} arquivo(s) enviado(s).`
+            message: `Paciente criado${resolvedPhone ? ' com telefone' : ''}${resolvedCPF ? ' com CPF' : ''} · ${uploaded} arquivo(s) enviado(s).`
         });
     }
 

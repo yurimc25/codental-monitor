@@ -307,7 +307,7 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
       <div class="kw-wrap" id="kw-wrap">
         <span class="kw">tomografia</span><span class="kw">voxels</span><span class="kw">fenelon</span>
         <span class="kw">radiomaster</span><span class="kw">documentação</span><span class="kw">cbct</span>
-        <span class="kw">laudo</span><span class="kw">radiografia</span><span class="kw">safe carneiro</span>
+        <span class="kw">laudo</span><span class="kw">radiografia</span><span class="kw">safe carneiro</span><span class="kw">alfa radiologia</span>
       </div>
     </div>
   </aside>
@@ -771,6 +771,7 @@ async function loadReview(){
       return `<div class="rv-item" id="rv-${id}">
         <div class="rv-name">${name}</div>
         ${sug?`<div class="rv-sug">→ ${esc(sug.patient_name)} (${Math.round(sug.score*100)}%)</div>`:''}
+        ${item.cpf_extracted||sug?.cpf?`<div class="rv-meta" style="color:var(--blu)">📋 CPF: ${esc(item.cpf_extracted||sug?.cpf)}</div>`:''}
         <div class="rv-meta">${date} · ${atts} arquivo${atts!==1?'s':''}</div>
         <div class="rv-btns">
           ${sug?`<button class="rv-btn confirm" onclick="rvConfirm('${id}','${sug.patient_id}','${esc(sug.patient_name)}')">✓ Confirmar</button>`:''}
@@ -836,16 +837,25 @@ async function rvSearch(id,extractedName){
 async function rvCreate(id,extractedName){
   const name=prompt('Nome completo do paciente:',extractedName||'');
   if(!name) return;
-  const phone=prompt('Telefone (opcional):','');
+  // Deixar vazio = busca automática nos contatos do Google
+  const phone=prompt('Telefone (deixe vazio para buscar nos contatos do Google):', '');
   rvDisable(id);
+  // Feedback visual durante busca
+  if(!phone){
+    const el=document.getElementById(`rv-${id}`);
+    const meta=el?.querySelector('.rv-meta');
+    if(meta) meta.textContent='📞 Buscando telefone nos contatos do Google...';
+  }
   try{
     const r=await fetch(`${API}/api/review`,{method:'POST',
       headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({log_id:id,action:'create',patient_name:name,patient_phone:phone})});
+      body:JSON.stringify({log_id:id,action:'create',patient_name:name,patient_phone:phone||''})});
     const d=await r.json();
     if(d.ok){
       const up=(d.uploads||[]).filter(u=>u.status==='uploaded').length;
-      toast(`✅ ${name} criado · ${up} arquivo(s)`,'ok');
+      const phoneMsg=d.patient_phone?` · 📞 ${d.patient_phone}`:'';
+      const cpfMsg=d.patient_cpf?` · 📋 ${d.patient_cpf}`:'';
+      toast(`✅ ${name} criado${phoneMsg}${cpfMsg} · ${up} arquivo(s)`,'ok');
       document.getElementById(`rv-${id}`)?.remove();
     } else { toast('Erro: '+d.error,'err'); loadReview(); }
   } catch(e){ toast(e.message,'err'); loadReview(); }
