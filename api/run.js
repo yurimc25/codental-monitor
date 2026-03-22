@@ -57,12 +57,49 @@ export default async function handler(req, res) {
         }
     }
 
-    // Lê número de dias do body (padrão 2 para cron, configurável no manual)
     const days = parseInt(req.body?.days) || 2;
+    // Offset inicial (0 = começo, ou continua de onde parou)
+    const startOffset = parseInt(req.body?.offset) || 0;
 
     try {
-        const summary = await run({ sinceDate, days, includeRead: true });
-        return res.status(200).json({ ok: true, ran_at: new Date().toISOString(), ...summary });
+        // Processa em lotes de 80, iterando até acabar ou atingir 270s
+        const started    = Date.now();
+        const TIME_LIMIT = 260_000; // 260s — margem de 40s antes do timeout de 300s
+        let offset       = startOffset;
+        let lastSummary  = null;
+        let iterations   = 0;
+
+        while (true) {
+            iterations++;
+            console.log(`
+🔄 Iteração ${iterations} — offset: ${offset}`);
+
+            const summary = await run({ sinceDate, days, includeRead: true, offset, batchSize: 80 });
+            lastSummary   = summary;
+            offset        = summary.next_offset || 0;
+
+            const elapsed = Date.now() - started;
+            console.log(`⏱ ${elapsed}ms | has_more: ${summary.has_more} | next_offset: ${offset}`);
+
+            // Para se não há mais emails ou se está perto do timeout
+            if (!summary.has_more) break;
+            if (elapsed > TIME_LIMIT) {
+                console.log(`⚠️ Tempo limite atingido. Próxima chamada deve usar offset: ${offset}`);
+                return res.status(200).json({
+                    ok: true,
+                    ran_at: new Date().toISOString(),
+                    incomplete: true,
+                    next_offset: offset,
+                    message: `Processados ${offset} de ${lastSummary.total_found} emails. Clique em processar novamente para continuar.`,
+                    ...lastSummary,
+                });
+            }
+
+            // Pausa entre lotes
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        return res.status(200).json({ ok: true, ran_at: new Date().toISOString(), iterations, ...lastSummary });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ ok: false, error: err.message });
