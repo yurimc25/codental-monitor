@@ -90,7 +90,7 @@ export default async function handler(req, res) {
             iterations++;
             console.log(`\n🔄 Iteração ${iterations} — offset: ${offset}`);
 
-            const summary = await run({ sinceDate, days: effectiveDays, includeRead: true, offset, batchSize: 80 });
+            const summary = await run({ sinceDate, days: effectiveDays, includeRead: true, offset, batchSize: 60 });
             lastSummary   = summary;
             offset        = summary.next_offset || 0;
 
@@ -104,15 +104,16 @@ export default async function handler(req, res) {
                 break;
             }
 
+            // Salva checkpoint a cada iteração (garante continuidade mesmo em timeout abrupto)
+            await saveCheckpoint({
+                days: effectiveDays,
+                next_offset: offset,
+                total_found: summary.total_found,
+                since_date: sinceDate?.toISOString() || null,
+                started_at: checkpoint?.started_at || new Date().toISOString(),
+            });
+
             if (elapsed > TIME_LIMIT) {
-                // Salva checkpoint para próxima chamada
-                await saveCheckpoint({
-                    days: effectiveDays,
-                    next_offset: offset,
-                    total_found: summary.total_found,
-                    since_date: sinceDate?.toISOString() || null,
-                    started_at: checkpoint?.started_at || new Date().toISOString(),
-                });
                 console.log(`⏸ Checkpoint salvo: offset ${offset}/${summary.total_found}`);
 
                 return res.status(200).json({

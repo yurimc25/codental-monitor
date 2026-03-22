@@ -121,7 +121,7 @@ export default async function handler(req, res) {
 
     // ── REJECT ────────────────────────────────────────────────────────────────
     if (action === 'reject') {
-        await col.updateOne({ _id: log._id }, { $set: { status: 'no_patient', pending_suggestion: null, reviewed_at: new Date() } });
+        await col.updateOne({ _id: log._id }, { $set: { status: 'no_patient', pending_suggestion: null, reviewed_at: new Date(), review_action: 'rejected' } });
         return res.status(200).json({ ok: true, message: 'Marcado como sem paciente' });
     }
 
