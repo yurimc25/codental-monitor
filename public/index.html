@@ -587,14 +587,10 @@ async function reprocessSearch(logId, extractedName){
     const d = await r.json();
     const all = d.all||d.first_3||[];
     if(!all.length){ toast('Nenhum paciente encontrado','err'); return; }
-    let msg = 'Encontrados '+d.count+'. Selecione:
-
-';
+    let msg = 'Encontrados '+d.count+'. Selecione:\n\n';
     const top = all.slice(0,10);
-    top.forEach((p,i)=>{ msg+=(i+1)+'. '+(p.fullName||p.name)+' (ID '+p.id+')
-'; });
-    const choice = prompt(msg+'
-Digite o número:');
+    top.forEach((p,i)=>{ msg+=(i+1)+'. '+(p.fullName||p.name)+' (ID '+p.id+')\n'; });
+    const choice = prompt(msg+'\nDigite o número:');
     if(!choice) return;
     const idx = parseInt(choice)-1;
     if(isNaN(idx)||idx<0||idx>=top.length){ toast('Seleção inválida','err'); return; }
@@ -726,20 +722,23 @@ function buildDetail(log){
   const name=esc(log.patient_name_extracted||'');
   const hasPat=!!log.patient_id_codental;
 
-  // Botões de ação
-  let actionBtns='<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">';
-  if(hasPat){
-    // Tem paciente — botão de reenvio direto
-    actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--grn);border-color:rgba(34,197,94,.3)" onclick="reprocessLog(''+id+'',''+log.patient_id_codental+'',''+esc(log.patient_name_codental||'')+'')">↑ Forçar reenvio de arquivos</button>';
-  } else {
-    // Sem paciente — buscar ou criar
-    actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--blu);border-color:rgba(96,165,250,.3)" onclick="reprocessSearch(''+id+'',''+name+'')">🔍 Buscar paciente e reenviar</button>';
-    actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--vio);border-color:rgba(167,139,250,.3)" onclick="reprocessCreate(''+id+'',''+name+'')">+ Criar paciente e reenviar</button>';
-    if(sug){
-      actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--amb);border-color:rgba(245,158,11,.3)" onclick="reprocessLog(''+id+'',''+sug.patient_id+'',''+esc(sug.patient_name||'')+'')">✓ Confirmar sugestão</button>';
-    }
-  }
-  actionBtns+='</div>';
+  // Botões de ação — usa data attributes para evitar problemas com aspas
+  const btnReenvio = hasPat
+    ? '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--grn);border-color:rgba(34,197,94,.3)"'
+      +' data-lid="'+id+'" data-pid="'+esc(log.patient_id_codental||'')+'" data-pname="'+esc(log.patient_name_codental||'')+'"'
+      +' onclick="reprocessLog(this.dataset.lid,this.dataset.pid,this.dataset.pname)">↑ Forçar reenvio de arquivos</button>'
+    : '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--blu);border-color:rgba(96,165,250,.3)"'
+      +' data-lid="'+id+'" data-name="'+name+'"'
+      +' onclick="reprocessSearch(this.dataset.lid,this.dataset.name)">🔍 Buscar paciente e reenviar</button>'
+      +'<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--vio);border-color:rgba(167,139,250,.3)"'
+      +' data-lid="'+id+'" data-name="'+name+'"'
+      +' onclick="reprocessCreate(this.dataset.lid,this.dataset.name)">+ Criar paciente e reenviar</button>'
+      +(sug
+        ? '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--amb);border-color:rgba(245,158,11,.3)"'
+          +' data-lid="'+id+'" data-pid="'+esc(sug.patient_id||'')+'" data-pname="'+esc(sug.patient_name||'')+'"'
+          +' onclick="reprocessLog(this.dataset.lid,this.dataset.pid,this.dataset.pname)">✓ Confirmar sugestão</button>'
+        : '');
+  const actionBtns = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+btnReenvio+'</div>';
 
   return '<div class="detail-head">Email</div>'
     +'<div class="detail-meta">'
