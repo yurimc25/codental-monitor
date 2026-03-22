@@ -201,21 +201,28 @@ export default async function handler(req, res) {
         const gmailMsgId = log.gmail_message_id;
         const results = [];
 
-        for (const att of log.attachments || []) {
-            if (att.status !== 'uploaded' && att.status !== 'pending') {
-                // Tenta baixar e enviar do Gmail
-                try {
-                    const message  = await getMessage(gmailMsgId);
-                    const gmailAtts = getAttachments(message);
-                    const gmailAtt  = gmailAtts.find(a => a.filename === att.filename);
-                    if (!gmailAtt) { results.push({ filename: att.filename, status: 'not_found_in_gmail' }); continue; }
+        // Recarrega mensagem do Gmail uma vez para todos os anexos
+        let gmailMessage = null;
+        let gmailAtts = [];
+        try {
+            gmailMessage = await getMessage(gmailMsgId);
+            gmailAtts = getAttachments(gmailMessage);
+        } catch (err) {
+            console.error('Erro ao buscar mensagem Gmail:', err.message);
+        }
 
-                    const buffer = await downloadAttachment(gmailMsgId, gmailAtt.attachmentId, gmailAtt.dataInline);
-                    await uploadFile(pid, buffer, att.filename, att.mimeType || 'application/octet-stream');
-                    results.push({ filename: att.filename, status: 'uploaded' });
-                } catch (err) {
-                    results.push({ filename: att.filename, status: 'error', error: err.message });
-                }
+        for (const att of log.attachments || []) {
+            // Força reenvio de todos (inclusive já enviados anteriormente)
+            try {
+                const gmailAtt = gmailAtts.find(a => a.filename === att.filename);
+                if (!gmailAtt) { results.push({ filename: att.filename, status: 'not_found_in_gmail' }); continue; }
+                const buffer = await downloadAttachment(gmailMsgId, gmailAtt.attachmentId, gmailAtt.dataInline);
+                await uploadFile(pid, buffer, att.filename, att.mime_type || att.mimeType || 'application/octet-stream');
+                results.push({ filename: att.filename, status: 'uploaded' });
+                console.log(`  ✅ Reenviado: ${att.filename} → paciente ${pid}`);
+            } catch (err) {
+                results.push({ filename: att.filename, status: 'error', error: err.message });
+                console.error(`  ❌ Erro reenvio: ${att.filename} — ${err.message}`);
             }
         }
 

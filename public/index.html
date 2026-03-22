@@ -561,6 +561,68 @@ async function runNow(){
   }
 }
 
+// ── REPROCESS LOG ───────────────────────────────────────────
+async function reprocessLog(logId, patientId, patientName){
+  if(!confirm('Forçar reenvio de todos os arquivos deste email para '+patientName+'?')) return;
+  try{
+    const r = await fetch(`${API}/api/review`,{
+      method:'POST',
+      headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({log_id:logId, action:'confirm', patient_id:patientId})
+    });
+    const d = await r.json();
+    if(d.ok){
+      const up=(d.results||[]).filter(x=>x.status==='uploaded').length;
+      toast('✅ '+up+' arquivo(s) enviado(s) para '+patientName,'ok');
+      await Promise.all([loadStats(), loadLogs()]);
+    } else { toast('Erro: '+(d.error||'falhou'),'err'); }
+  } catch(e){ toast(e.message,'err'); }
+}
+
+async function reprocessSearch(logId, extractedName){
+  const query = prompt('Buscar paciente:', extractedName||'');
+  if(!query) return;
+  try{
+    const r = await fetch(`${API}/api/debug-search?name=${encodeURIComponent(query)}`,{headers:{'x-api-key':API_KEY}});
+    const d = await r.json();
+    const all = d.all||d.first_3||[];
+    if(!all.length){ toast('Nenhum paciente encontrado','err'); return; }
+    let msg = 'Encontrados '+d.count+'. Selecione:
+
+';
+    const top = all.slice(0,10);
+    top.forEach((p,i)=>{ msg+=(i+1)+'. '+(p.fullName||p.name)+' (ID '+p.id+')
+'; });
+    const choice = prompt(msg+'
+Digite o número:');
+    if(!choice) return;
+    const idx = parseInt(choice)-1;
+    if(isNaN(idx)||idx<0||idx>=top.length){ toast('Seleção inválida','err'); return; }
+    const sel = top[idx];
+    if(confirm('Confirmar: "'+(sel.fullName||sel.name)+'"?'))
+      await reprocessLog(logId, String(sel.id), sel.fullName||sel.name);
+  } catch(e){ toast('Erro: '+e.message,'err'); }
+}
+
+async function reprocessCreate(logId, extractedName){
+  const name = prompt('Nome completo do paciente:', extractedName||'');
+  if(!name) return;
+  const phone = prompt('Telefone (vazio = busca nos contatos do Google):','');
+  try{
+    const r = await fetch(`${API}/api/review`,{
+      method:'POST',
+      headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({log_id:logId, action:'create', patient_name:name, patient_phone:phone||''})
+    });
+    const d = await r.json();
+    if(d.ok){
+      const up=(d.uploads||[]).filter(u=>u.status==='uploaded').length;
+      toast('✅ '+name+' criado · '+up+' arquivo(s)','ok');
+      await Promise.all([loadStats(), loadLogs()]);
+    } else { toast('Erro: '+(d.error||'falhou'),'err'); }
+  } catch(e){ toast(e.message,'err'); }
+}
+
 // ── GMAIL RECONNECT ─────────────────────────────────────────
 function reconnectGmail(){
   if(!confirm('Isso vai redirecionar para o Google para autorizar novamente.\nNecessário para ativar acesso aos Contatos do Google (People API).\n\nContinuar?')) return;
@@ -650,29 +712,47 @@ function renderLogs(logs){
 function buildDetail(log){
   const atts=log.attachments||[];
   const rows=atts.length
-    ? atts.map(a=>`<tr>
-        <td class="fn">${esc(a.filename)}</td>
-        <td class="sz">${fmtBytes(a.size_bytes)}</td>
-        <td><span class="badge ${a.status}">${attStatusLabel(a.status)}</span></td>
-        <td style="color:var(--t3)">${esc(a.error_message||a.skipped_reason||'')}</td>
-      </tr>`).join('')
+    ? atts.map(a=>'<tr>'
+        +'<td class="fn">'+esc(a.filename)+'</td>'
+        +'<td class="sz">'+fmtBytes(a.size_bytes)+'</td>'
+        +'<td><span class="badge '+(a.status||'')+'">'+attStatusLabel(a.status)+'</span></td>'
+        +'<td style="color:var(--t3)">'+esc(a.error_message||a.skipped_reason||'')+'</td>'
+        +'</tr>').join('')
     : '<tr><td colspan="4" style="color:var(--t3)">nenhum anexo</td></tr>';
 
   const sug=log.pending_suggestion;
-  const sugRow=sug?`<div class="key">Sugestão</div><div class="val warn">${esc(sug.patient_name)} (${Math.round(sug.score*100)}%)</div>`:'';
+  const sugRow=sug?('<div class="key">Sugestão</div><div class="val warn">'+esc(sug.patient_name)+' ('+Math.round(sug.score*100)+'%)</div>'):'';
+  const id=String(log._id||log.gmail_message_id||'');
+  const name=esc(log.patient_name_extracted||'');
+  const hasPat=!!log.patient_id_codental;
 
-  return `
-    <div class="detail-head">Email</div>
-    <div class="detail-meta">
-      <div class="key">Message ID</div><div class="val">${esc(log.gmail_message_id||'—')}</div>
-      <div class="key">Remetente</div><div class="val">${esc(log.from||'—')}</div>
-      <div class="key">Paciente ID</div><div class="val ${log.patient_id_codental?'ok':''}">${esc(log.patient_id_codental||'não encontrado')}</div>
-      <div class="key">Score match</div><div class="val">${log.match_score?Math.round(log.match_score*100)+'%':'—'}</div>
-      ${sugRow}
-    </div>
-    <div class="detail-head">Anexos (${atts.length})</div>
-    <table class="att-table"><thead><tr><th>Arquivo</th><th>Tamanho</th><th>Status</th><th>Info</th></tr></thead>
-    <tbody>${rows}</tbody></table>`;
+  // Botões de ação
+  let actionBtns='<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">';
+  if(hasPat){
+    // Tem paciente — botão de reenvio direto
+    actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--grn);border-color:rgba(34,197,94,.3)" onclick="reprocessLog(''+id+'',''+log.patient_id_codental+'',''+esc(log.patient_name_codental||'')+'')">↑ Forçar reenvio de arquivos</button>';
+  } else {
+    // Sem paciente — buscar ou criar
+    actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--blu);border-color:rgba(96,165,250,.3)" onclick="reprocessSearch(''+id+'',''+name+'')">🔍 Buscar paciente e reenviar</button>';
+    actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--vio);border-color:rgba(167,139,250,.3)" onclick="reprocessCreate(''+id+'',''+name+'')">+ Criar paciente e reenviar</button>';
+    if(sug){
+      actionBtns+='<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--amb);border-color:rgba(245,158,11,.3)" onclick="reprocessLog(''+id+'',''+sug.patient_id+'',''+esc(sug.patient_name||'')+'')">✓ Confirmar sugestão</button>';
+    }
+  }
+  actionBtns+='</div>';
+
+  return '<div class="detail-head">Email</div>'
+    +'<div class="detail-meta">'
+    +'<div class="key">Message ID</div><div class="val">'+esc(log.gmail_message_id||'—')+'</div>'
+    +'<div class="key">Remetente</div><div class="val">'+esc(log.from||'—')+'</div>'
+    +'<div class="key">Paciente</div><div class="val '+(hasPat?'ok':'err')+'">'+esc(log.patient_id_codental||'não encontrado')+(log.patient_name_codental?' — '+esc(log.patient_name_codental):'')+'</div>'
+    +'<div class="key">Score match</div><div class="val">'+(log.match_score?Math.round(log.match_score*100)+'%':'—')+'</div>'
+    +sugRow
+    +'</div>'
+    +actionBtns
+    +'<div class="detail-head">Anexos ('+atts.length+')</div>'
+    +'<table class="att-table"><thead><tr><th>Arquivo</th><th>Tamanho</th><th>Status</th><th>Info</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>';
 }
 
 let openDetailIdx=null;
