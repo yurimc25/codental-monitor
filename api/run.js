@@ -62,16 +62,26 @@ export default async function handler(req, res) {
     }
 
     const days = parseInt(req.body?.days) || 2;
-    const includeRead = req.body?.include_read !== false; // padrão: true (lidos e não lidos)
+    const includeRead = req.body?.include_read !== false;
+
+    // Só limpa o checkpoint sem processar (usado pelo botão "Reiniciar do zero")
+    if (req.body?.restart === true) {
+        await clearCheckpoint();
+        return res.status(200).json({ ok: true, message: 'Checkpoint limpo. Próxima varredura começa do início.' });
+    } // padrão: true (lidos e não lidos)
     // Verifica se há checkpoint salvo (continuação automática)
     const forceRestart = req.body?.restart === true;
     let checkpoint = forceRestart ? null : await getCheckpoint();
 
-    // Se o checkpoint é de um período diferente, ignora
-    if (checkpoint && checkpoint.days !== days) {
-        console.log(`⚠️ Checkpoint de ${checkpoint.days} dias, pedido de ${days} dias — reiniciando`);
-        checkpoint = null;
-        await clearCheckpoint();
+    // Se o checkpoint é de um período diferente OU de includeRead diferente → reinicia
+    if (checkpoint) {
+        const sameDays = checkpoint.days === days;
+        const sameRead = checkpoint.includeRead === undefined || checkpoint.includeRead === includeRead;
+        if (!sameDays || !sameRead) {
+            console.log(`⚠️ Checkpoint incompatível (days: ${checkpoint.days}→${days}, read: ${checkpoint.includeRead}→${includeRead}) — reiniciando`);
+            checkpoint = null;
+            await clearCheckpoint();
+        }
     }
 
     const startOffset  = checkpoint?.next_offset || parseInt(req.body?.offset) || 0;

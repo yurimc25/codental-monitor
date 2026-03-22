@@ -241,11 +241,14 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
         <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
       </div>
 
-      <label style="display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--t2);cursor:pointer;margin-bottom:4px;user-select:none">
+      <label style="display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--t2);cursor:pointer;margin-bottom:4px;user-select:none" title="Desmarcado = só emails não lidos (novos). Emails são marcados como lidos somente após upload bem-sucedido.">
         <input type="checkbox" id="include-read" checked style="accent-color:var(--grn);width:13px;height:13px">
         Incluir emails já lidos
       </label>
       <button class="btn" style="width:100%;justify-content:center" onclick="loadLogs()">↻ Atualizar logs</button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:4px;font-size:9px;color:var(--t3)" onclick="clearCheckpoint()" id="clear-cp-btn" title="Limpa o ponto de retomada salvo e força nova varredura do início">
+        ↺ Reiniciar varredura do zero
+      </button>
 
       <button class="btn" style="width:100%;justify-content:center;margin-top:6px;color:var(--amb);border-color:rgba(245,158,11,.3)" onclick="openReview()">
         ⏳ Revisar pendências
