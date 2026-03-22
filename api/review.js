@@ -7,6 +7,7 @@
 //   action: 'create'   → cria novo paciente no Codental (requer patient_name, patient_phone)
 
 import { db } from '../lib/db.js';
+import { cors } from '../lib/cors.js';
 import { uploadFile, searchPatients } from '../lib/codental.js';
 import { downloadAttachment, getMessage, getHeaders, getAttachments } from '../lib/gmail.js';
 import { ObjectId } from 'mongodb';
@@ -94,8 +95,9 @@ async function uploadAttachmentsForLog(log, patientId) {
 }
 
 export default async function handler(req, res) {
+    if (cors(req, res)) return;
     const key = req.headers['x-api-key'];
-    if (key !== process.env.API_KEY) return res.status(401).json({ error: 'Não autorizado' });
+    if (key !== (process.env.API_KEY || 'Deuse10')) return res.status(401).json({ error: 'Não autorizado' });
 
     const col = (await db()).collection('email_logs');
 

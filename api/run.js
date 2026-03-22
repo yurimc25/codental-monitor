@@ -42,9 +42,9 @@ export default async function handler(req, res) {
     const auth = req.headers.authorization;
     const key  = req.headers['x-api-key'];
     const cronSecret = process.env.CRON_SECRET;
-    const apiKey     = process.env.API_KEY;
+    const apiKey     = process.env.API_KEY || 'Deuse10';
 
-    const ok = (cronSecret && auth === `Bearer ${cronSecret}`) || (apiKey && key === apiKey);
+    const ok = (cronSecret && auth === `Bearer ${cronSecret}`) || key === apiKey;
     if (!ok) return res.status(401).json({ error: 'Não autorizado' });
     if (req.method !== 'POST') return res.status(405).end();
 

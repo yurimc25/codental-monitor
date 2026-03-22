@@ -6,6 +6,7 @@
 // POST /api/purge  → executa a limpeza
 
 import crypto from 'crypto';
+import { cors } from '../lib/cors.js';
 import { db } from '../lib/db.js';
 
 export const config = { maxDuration: 300 };
@@ -52,8 +53,9 @@ async function sess() {
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+    if (cors(req, res)) return;
     const key = req.headers['x-api-key'];
-    if (key !== process.env.API_KEY) return res.status(401).json({ error: 'Não autorizado' });
+    if (key !== (process.env.API_KEY || 'Deuse10')) return res.status(401).json({ error: 'Não autorizado' });
 
     const dryRun = req.method === 'GET';
 
