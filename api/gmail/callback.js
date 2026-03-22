@@ -1,8 +1,10 @@
 // api/gmail/callback.js — Recebe code, salva tokens, redireciona
 import { exchangeCode } from '../../lib/gmail.js';
 import { updateSettings } from '../../lib/db.js';
+import { cors } from '../../lib/cors.js';
 
 export default async function handler(req, res) {
+    if (cors(req, res)) return;
     const { code, error } = req.query;
     if (error) return res.redirect(`/?error=${encodeURIComponent(error)}`);
     if (!code) return res.status(400).send('Parâmetro code ausente');
