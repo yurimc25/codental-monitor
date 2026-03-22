@@ -62,6 +62,7 @@ export default async function handler(req, res) {
     }
 
     const days = parseInt(req.body?.days) || 2;
+    const includeRead = req.body?.include_read !== false; // padrão: true (lidos e não lidos)
     // Verifica se há checkpoint salvo (continuação automática)
     const forceRestart = req.body?.restart === true;
     let checkpoint = forceRestart ? null : await getCheckpoint();
@@ -75,6 +76,7 @@ export default async function handler(req, res) {
 
     const startOffset  = checkpoint?.next_offset || parseInt(req.body?.offset) || 0;
     const effectiveDays = checkpoint?.days || days;
+    const effectiveRead  = checkpoint?.includeRead !== undefined ? checkpoint.includeRead : includeRead;
     const totalFound   = checkpoint?.total_found || 0;
 
     console.log(`📌 ${checkpoint ? `Retomando checkpoint: offset ${startOffset}/${totalFound}` : 'Início fresh'}`);
@@ -90,7 +92,7 @@ export default async function handler(req, res) {
             iterations++;
             console.log(`\n🔄 Iteração ${iterations} — offset: ${offset}`);
 
-            const summary = await run({ sinceDate, days: effectiveDays, includeRead: true, offset, batchSize: 60 });
+            const summary = await run({ sinceDate, days: effectiveDays, includeRead: effectiveRead, offset, batchSize: 60 });
             lastSummary   = summary;
             offset        = summary.next_offset || 0;
 
@@ -107,6 +109,7 @@ export default async function handler(req, res) {
             // Salva checkpoint a cada iteração (garante continuidade mesmo em timeout abrupto)
             await saveCheckpoint({
                 days: effectiveDays,
+                includeRead,
                 next_offset: offset,
                 total_found: summary.total_found,
                 since_date: sinceDate?.toISOString() || null,

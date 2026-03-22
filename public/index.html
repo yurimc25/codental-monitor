@@ -241,6 +241,10 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
         <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
       </div>
 
+      <label style="display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--t2);cursor:pointer;margin-bottom:4px;user-select:none">
+        <input type="checkbox" id="include-read" checked style="accent-color:var(--grn);width:13px;height:13px">
+        Incluir emails já lidos
+      </label>
       <button class="btn" style="width:100%;justify-content:center" onclick="loadLogs()">↻ Atualizar logs</button>
 
       <button class="btn" style="width:100%;justify-content:center;margin-top:6px;color:var(--amb);border-color:rgba(245,158,11,.3)" onclick="openReview()">
@@ -479,7 +483,8 @@ async function runNow(){
   pb.style.width = '0%';
   pl.textContent = 'Iniciando...';
 
-  const body = JSON.stringify({ days });
+  const includeRead = document.getElementById('include-read')?.checked !== false;
+  const body = JSON.stringify({ days, include_read: includeRead });
 
   try{
     const r = await fetch(`${API}/api/run`,{
@@ -760,22 +765,57 @@ async function loadReview(){
       html2 += '<div class="rv-meta">'+date+' · '+atts+' arquivo'+(atts!==1?'s':'')+'</div>';
 
       // Botões
+      // Usa data attributes para evitar problemas com aspas no onclick
       html2 += '<div class="rv-btns">';
       if(sug||inCache){
-        const btnPid  = inCache ? cId : esc(sug?.patient_id||'');
-        const btnName = inCache ? cMatch : esc(sug?.patient_name||'');
+        const btnPid   = inCache ? cId : (sug?.patient_id||'');
+        const btnPname = inCache ? (item.cache_match||'') : (sug?.patient_name||'');
         const btnLabel = inCache ? 'Enviar arquivos' : 'Confirmar';
-        html2 += '<button class="rv-btn confirm" onclick="rvConfirm(''+id+'',''+btnPid+'',''+btnName+'','+gids+')">✓ '+btnLabel+'</button>';
+        html2 += '<button class="rv-btn confirm"'
+          +' data-id="'+id+'"'
+          +' data-pid="'+esc(btnPid)+'"'
+          +' data-pname="'+esc(btnPname)+'"'
+          +' data-gids="'+esc(gids)+'"'
+          +' onclick="rvConfirmEl(this)">✓ '+btnLabel+'</button>';
       }
-      html2 += '<button class="rv-btn search" onclick="rvSearch(''+id+'',''+name+'','+gids+')">🔍 Buscar</button>';
-      html2 += '<button class="rv-btn create" onclick="rvCreate(''+id+'',''+name+'','+gids+')">+ Criar paciente</button>';
-      html2 += '<button class="rv-btn reject" onclick="rvReject(''+id+'','+gids+')">✕ Ignorar tudo</button>';
+      html2 += '<button class="rv-btn search"'
+        +' data-id="'+id+'"'
+        +' data-name="'+name+'"'
+        +' data-gids="'+esc(gids)+'"'
+        +' onclick="rvSearchEl(this)">🔍 Buscar</button>';
+      html2 += '<button class="rv-btn create"'
+        +' data-id="'+id+'"'
+        +' data-name="'+name+'"'
+        +' data-gids="'+esc(gids)+'"'
+        +' onclick="rvCreateEl(this)">+ Criar paciente</button>';
+      html2 += '<button class="rv-btn reject"'
+        +' data-id="'+id+'"'
+        +' data-gids="'+esc(gids)+'"'
+        +' onclick="rvRejectEl(this)">✕ Ignorar tudo</button>';
       html2 += '</div></div>';
       return html2;
     });
     body.innerHTML = cards.join('');
   } catch(e){ body.innerHTML='<div style="color:var(--red);font-family:var(--mono);font-size:11px;padding:20px">Erro: '+e.message+'</div>'; }
 }
+// Wrappers que leem data attributes para evitar problemas com aspas
+function rvConfirmEl(btn){
+  const g=JSON.parse(btn.dataset.gids||'[]');
+  rvConfirm(btn.dataset.id, btn.dataset.pid, btn.dataset.pname, g);
+}
+function rvSearchEl(btn){
+  const g=JSON.parse(btn.dataset.gids||'[]');
+  rvSearch(btn.dataset.id, btn.dataset.name, g);
+}
+function rvCreateEl(btn){
+  const g=JSON.parse(btn.dataset.gids||'[]');
+  rvCreate(btn.dataset.id, btn.dataset.name, g);
+}
+function rvRejectEl(btn){
+  const g=JSON.parse(btn.dataset.gids||'[]');
+  rvReject(btn.dataset.id, g);
+}
+
 function rvDisable(id){
   const el=document.getElementById(`rv-${id}`);
   if(el){ el.style.opacity='.4'; el.querySelectorAll('button').forEach(b=>b.disabled=true); }
