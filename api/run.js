@@ -102,7 +102,7 @@ export default async function handler(req, res) {
             iterations++;
             console.log(`\n🔄 Iteração ${iterations} — offset: ${offset}`);
 
-            const summary = await run({ sinceDate, days: effectiveDays, includeRead: effectiveRead, offset, batchSize: 60 });
+            const summary = await run({ sinceDate, days: effectiveDays, includeRead: effectiveRead, offset, batchSize: 60, prevOldestDate: checkpoint?.oldest_date_seen || null });
             lastSummary   = summary;
             offset        = summary.next_offset || 0;
 
@@ -124,7 +124,7 @@ export default async function handler(req, res) {
                 total_found: summary.total_found,
                 since_date: sinceDate?.toISOString() || null,
                 started_at: checkpoint?.started_at || new Date().toISOString(),
-                oldest_date_seen: summary.oldest_date_seen || checkpoint?.oldest_date_seen || null,
+                oldest_date_seen: summary.oldest_date_seen || checkpoint?.oldest_date_seen || null,  // mantém o mais antigo de todos os lotes
             });
 
             if (elapsed > TIME_LIMIT) {
@@ -146,7 +146,7 @@ export default async function handler(req, res) {
             await new Promise(r => setTimeout(r, 300));
         }
 
-        return res.status(200).json({ ok: true, ran_at: new Date().toISOString(), iterations, complete: true, ...lastSummary });
+        return res.status(200).json({ ok: true, ran_at: new Date().toISOString(), iterations, complete: true, oldest_date_seen: lastSummary?.oldest_date_seen || null, ...lastSummary });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ ok: false, error: err.message });

@@ -270,6 +270,7 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
 
 
 
+      <div id="checkpoint-progress" style="display:none;font-family:var(--mono);font-size:9px;color:var(--amb);background:var(--ambd);border:1px solid rgba(245,158,11,.2);border-radius:4px;padding:5px 8px;margin-bottom:4px;line-height:1.5"></div>
       <div class="last-run" id="last-run-box">
         Última execução<br><span id="last-run-val">—</span>
         <span id="oldest-date-wrap" style="display:none"><br>Email mais antigo visto:<br><span id="oldest-date-val" style="color:var(--grn)">—</span></span>
@@ -450,6 +451,19 @@ async function loadStats(){
     if(d.synced_at){
       document.getElementById('sync-status').textContent =
         `${d.patients_total||0} pacientes\nAtualizado: ${fmtDateShort(d.synced_at)}`;
+    }
+    if(d.checkpoint_oldest){
+      document.getElementById('oldest-date-wrap').style.display='';
+      document.getElementById('oldest-date-val').textContent = fmtDate(d.checkpoint_oldest);
+    }
+    // Mostra progresso do checkpoint ativo
+    const cpWrap = document.getElementById('checkpoint-progress');
+    if(d.checkpoint_offset && d.checkpoint_total && cpWrap){
+      const pct = Math.round(d.checkpoint_offset/d.checkpoint_total*100);
+      cpWrap.style.display='';
+      cpWrap.textContent = `Varredura em andamento: ${pct}% (${d.checkpoint_offset}/${d.checkpoint_total})`;
+    } else if(cpWrap){
+      cpWrap.style.display='none';
     }
   } catch(e){ console.error('loadStats',e); }
 }
