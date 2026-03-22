@@ -44,6 +44,55 @@ async function sess() {
 }
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────────
+// ─── UPLOAD DOS ANEXOS PARA UM LOG ────────────────────────────────────────────
+async function uploadAttachmentsForLog(log, patientId) {
+    const { getMessage, getAttachments, downloadAttachment } = await import('../lib/gmail.js');
+    const { uploadFile } = await import('../lib/codental.js');
+
+    const results = [];
+
+    try {
+        const message = await getMessage(log.gmail_message_id);
+        const gmailAtts = getAttachments(message);
+
+        for (const att of (log.attachments || [])) {
+            const entry = {
+                filename:          att.filename,
+                mime_type:         att.mime_type,
+                size_bytes:        att.size_bytes,
+                status:            'error',
+                codental_upload_id: null,
+                error_message:     null,
+                skipped_reason:    null,
+            };
+
+            try {
+                const gmailAtt = gmailAtts.find(a => a.filename === att.filename);
+                if (!gmailAtt) {
+                    entry.error_message = 'Anexo não encontrado no Gmail';
+                    results.push(entry);
+                    continue;
+                }
+
+                const buffer = await downloadAttachment(log.gmail_message_id, gmailAtt.attachmentId, gmailAtt.dataInline || null);
+                const { uploadId } = await uploadFile(patientId, buffer, att.filename, att.mime_type || 'application/octet-stream');
+                entry.status = 'uploaded';
+                entry.codental_upload_id = uploadId;
+                console.log(`  ✅ Upload: ${att.filename} → paciente ${patientId}`);
+            } catch (err) {
+                entry.error_message = err.message;
+                console.error(`  ❌ Upload falhou: ${att.filename} — ${err.message}`);
+            }
+
+            results.push(entry);
+        }
+    } catch (err) {
+        console.error('uploadAttachmentsForLog erro:', err.message);
+    }
+
+    return results;
+}
+
 export default async function handler(req, res) {
     const key = req.headers['x-api-key'];
     if (key !== process.env.API_KEY) return res.status(401).json({ error: 'Não autorizado' });
@@ -105,7 +154,7 @@ export default async function handler(req, res) {
         try {
             const patients = await searchPatients(patient_name || pid);
             const p = patients.find(p => String(p.id) === String(pid));
-            confirmedName = p?.name || p?.full_name || null;
+            confirmedName = p?.fullName || p?.name || p?.full_name || null;
         } catch (_) {}
 
         await col.updateOne({ _id: log._id }, {
@@ -128,37 +177,54 @@ export default async function handler(req, res) {
         const s = await sess();
 
         // Cria paciente no Codental
-        const form = new FormData();
-        form.append('patient[name]', patient_name);
-        if (patient_phone) form.append('patient[phone]', patient_phone);
+        // Campo correto é patient[full_name] conforme HTML do formulário /patients/new
+        const body = new URLSearchParams();
+        body.append('authenticity_token', s.csrf);
+        body.append('patient[full_name]', patient_name);
+        if (patient_phone) {
+            // Remove formatação, mantém só dígitos + country code
+            const digits = patient_phone.replace(/\D/g, '');
+            body.append('patient[cellphone_formated]', patient_phone);
+            body.append('patient[cellphone_country_code]', '+55');
+        }
 
         const cr = await fetch(`${APP_BASE}/patients`, {
             method: 'POST',
+            redirect: 'manual',
             headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
                 'Cookie': s.cookie,
                 'X-CSRF-Token': s.csrf,
                 'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json, text/html',
-                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'text/html,application/xhtml+xml',
+                'Origin': APP_BASE,
+                'Referer': `${APP_BASE}/patients/new`,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             },
-            body: form,
+            body: body.toString(),
         });
 
-        if (!cr.ok && cr.status !== 302) {
-            const txt = await cr.text().catch(() => '');
-            return res.status(500).json({ ok: false, error: `Criação falhou: HTTP ${cr.status}`, detail: txt.slice(0, 200) });
-        }
+        console.log(`🏥 Criar paciente: HTTP ${cr.status}, Location: ${cr.headers.get('location') || 'none'}`);
 
-        // Extrai ID do novo paciente da Location header
+        // Sucesso = 302 redirect para /patients/:id
         const location = cr.headers.get('location') || '';
         const idMatch  = location.match(/\/patients\/(\d+)/);
         const newId    = idMatch?.[1];
 
         if (!newId) {
-            return res.status(200).json({ ok: true, warning: 'Paciente criado mas ID não obtido. Confirme manualmente no Codental.', location });
+            const txt = await cr.text().catch(() => '');
+            console.log('Criar paciente body (primeiros 500):', txt.slice(0, 500));
+            return res.status(500).json({
+                ok: false,
+                error: `Paciente não criado (HTTP ${cr.status}). ID não encontrado no redirect.`,
+                location,
+                hint: 'Verifique os logs da Vercel para ver o body da resposta.'
+            });
         }
 
-        // Marca o log com o novo paciente
+        console.log(`✅ Paciente criado: ${patient_name} (ID ${newId})`);
+
+        // Atualiza log com novo paciente e faz upload dos anexos
         await col.updateOne({ _id: log._id }, {
             $set: {
                 patient_id_codental: newId,
@@ -166,10 +232,29 @@ export default async function handler(req, res) {
                 pending_suggestion: null,
                 reviewed_at: new Date(),
                 review_action: 'created',
+                status: 'pending_upload',
             },
         });
 
-        return res.status(200).json({ ok: true, patient_id: newId, patient_name, message: 'Paciente criado. Use "confirm" para enviar os anexos.' });
+        // Reprocessa anexos para o novo paciente
+        const uploadResults = await uploadAttachmentsForLog(log, newId);
+
+        // Atualiza status final
+        const uploaded = uploadResults.filter(r => r.status === 'uploaded').length;
+        await col.updateOne({ _id: log._id }, {
+            $set: {
+                status: uploaded > 0 ? 'uploaded' : 'failed',
+                attachments: uploadResults,
+            },
+        });
+
+        return res.status(200).json({
+            ok: true,
+            patient_id: newId,
+            patient_name,
+            uploads: uploadResults,
+            message: `Paciente criado e ${uploaded} arquivo(s) enviado(s).`
+        });
     }
 
     return res.status(400).json({ error: `Ação desconhecida: ${action}` });
