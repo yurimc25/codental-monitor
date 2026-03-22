@@ -393,21 +393,29 @@ function tickCron(){
 // ── GMAIL STATUS ───────────────────────────────────────────
 async function checkGmail(){
   try{
-    const r = await fetch(`${API}/api/gmail/auth`,{headers:{'x-api-key':API_KEY}});
-    const d = await r.json();
+    // redirect:manual evita seguir o redirect OAuth
+    const r = await fetch(`${API}/api/gmail/auth`, {
+      headers:{'x-api-key':API_KEY},
+      redirect: 'manual'
+    });
     const pill = document.getElementById('gmail-pill');
-    if(d.authorized){
-      pill.textContent='Gmail: conectado';
-      pill.className='pill gmail-ok';
-    } else {
-      pill.textContent='Gmail: não conectado';
-      pill.className='pill gmail-err';
-      document.getElementById('connect-btn').style.display='flex';
-      document.getElementById('oauth-notice').classList.add('show');
+    // Se retornou JSON com authorized:true → conectado
+    // Se retornou redirect (302) → não conectado
+    if(r.status === 200){
+      const d = await r.json();
+      if(d.authorized){
+        pill.textContent='Gmail: conectado';
+        pill.className='pill gmail-ok';
+        return;
+      }
     }
+    pill.textContent='Gmail: não conectado';
+    pill.className='pill gmail-err';
+    document.getElementById('connect-btn').style.display='flex';
+    document.getElementById('oauth-notice').classList.add('show');
   } catch(e){
-    document.getElementById('gmail-pill').textContent='Gmail: erro';
-    document.getElementById('gmail-pill').className='pill gmail-err';
+    // Erro de rede ou CORS no redirect — assume conectado se logs carregam
+    document.getElementById('gmail-pill').textContent='Gmail: verificando...';
   }
 }
 

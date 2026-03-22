@@ -23,6 +23,12 @@
     },
     "api/debug-search.js": {
       "maxDuration": 30
+    },
+    "api/gmail/auth.js": {
+      "maxDuration": 10
+    },
+    "api/gmail/callback.js": {
+      "maxDuration": 10
     }
   },
   "rewrites": [
