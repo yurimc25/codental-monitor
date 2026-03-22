@@ -1,67 +1,31 @@
 {
   "crons": [
-    {
-      "path": "/api/run",
-      "schedule": "0 8 * * *"
-    }
+    { "path": "/api/run", "schedule": "0 8 * * *" }
   ],
   "functions": {
-    "api/run.js": {
-      "maxDuration": 300
-    },
-    "api/logs.js": {
-      "maxDuration": 30
-    },
-    "api/purge.js": {
-      "maxDuration": 300
-    },
-    "api/review.js": {
-      "maxDuration": 300
-    },
-    "api/import-patients.js": {
-      "maxDuration": 60
-    },
-    "api/debug-search.js": {
-      "maxDuration": 30
-    },
-    "api/gmail/auth.js": {
-      "maxDuration": 10
-    },
-    "api/gmail/callback.js": {
-      "maxDuration": 10
-    }
+    "api/run.js":              { "maxDuration": 300 },
+    "api/logs.js":             { "maxDuration": 30  },
+    "api/purge.js":            { "maxDuration": 300 },
+    "api/review.js":           { "maxDuration": 300 },
+    "api/import-patients.js":  { "maxDuration": 60  },
+    "api/debug-search.js":     { "maxDuration": 30  },
+    "api/options.js":          { "maxDuration": 10  },
+    "api/gmail/auth.js":       { "maxDuration": 10  },
+    "api/gmail/callback.js":   { "maxDuration": 10  }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
-      "destination": "/public/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,OPTIONS,POST,PUT,DELETE,PATCH"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "x-api-key, Content-Type, Authorization, X-Requested-With, Accept"
-        },
-        {
-          "key": "Access-Control-Max-Age",
-          "value": "86400"
-        }
-      ]
-    }
+      "src": "/api/(.*)",
+      "methods": ["OPTIONS"],
+      "dest": "/api/options",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "x-api-key, Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400"
+      }
+    },
+    { "src": "/", "dest": "/public/index.html" },
+    { "src": "/api/(.*)", "dest": "/api/$1" }
   ]
 }
