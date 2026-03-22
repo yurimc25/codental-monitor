@@ -527,10 +527,16 @@ async function runNow(){
           document.getElementById('oldest-date-wrap').style.display='';
           document.getElementById('oldest-date-val').textContent = fmtDate(d.oldest_date_seen);
         }
-        toast(`📧 ${pct}% processado — continuando...`,'');
+        toast(`📧 ${pct}% — checkpoint salvo. Pode fechar a página, o servidor continua.`,'');
         setRunning(false);
-        // Auto-continue — server reads checkpoint
-        setTimeout(()=>runNow(), 1500);
+        // Checkpoint salvo no servidor — continua automaticamente no próximo clique
+        // OU pode fechar a página e clicar Processar depois que vai retomar do ponto salvo
+        // Continua automaticamente se ainda estiver na página
+        if(document.visibilityState !== 'hidden'){
+          setTimeout(()=>{
+            if(document.visibilityState !== 'hidden') runNow();
+          }, 2000);
+        }
         return;
       } else {
         pb.style.width = '100%';
@@ -619,7 +625,7 @@ function renderLogs(logs){
       ? `<span class="tag patient">👤 ${esc(log.patient_name_extracted||'paciente')}</span>`
       : (log.patient_name_extracted ? `<span class="tag no-pat">? ${esc(log.patient_name_extracted)}</span>` : '');
     item.innerHTML=`
-      <div class="log-time">${fmtDate(log.processed_at)}</div>
+      <div class="log-time" title="Recebido: ${fmtDate(log.email_date||log.date||log.processed_at)}">${fmtDate(log.email_date||log.date||log.processed_at)}</div>
       <div class="log-main">
         <div class="log-subject">${esc(log.subject||'(sem assunto)')}</div>
         <div class="log-meta">
