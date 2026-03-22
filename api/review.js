@@ -109,22 +109,40 @@ export default async function handler(req, res) {
             .limit(200)
             .toArray();
 
-        // Verifica na base local se o paciente já existe pelo nome extraído
+        // Importa scorePair para usar a mesma lógica de matching com validação do primeiro nome
+        const { scorePair } = await import('../lib/extractor.js');
+
         const patientsCache = (await (await import('../lib/db.js')).db()).collection('patients_cache');
 
-        // Deduplica: para o mesmo nome extraído, agrupa todos os logs
-        // e exibe apenas UM card com todos os IDs de log agrupados
-        const grouped = new Map(); // key: normalized patient name
+        // Helper: normaliza nome para comparação
+        const normStr = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+        // Deduplica e verifica cache usando scorePair (mesma lógica do processor)
+        const grouped = new Map();
 
         for (const item of allPending) {
             const rawName = item.patient_name_extracted || '';
-            const normName = rawName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+            const normName = normStr(rawName);
             if (!normName) continue;
 
-            // Verifica se já existe na cache local (prontuário já criado)
-            const existsInCache = await patientsCache.findOne({
-                name_norm: { $regex: normName.split(' ')[0], $options: 'i' }
-            });
+            // Busca candidatos na cache pelo primeiro token (pré-filtro amplo)
+            const firstToken = normName.split(' ')[0];
+            if (!firstToken || firstToken.length < 2) continue;
+
+            const candidates = await patientsCache.find({
+                name_norm: { $regex: firstToken, $options: 'i' }
+            }).limit(50).toArray();
+
+            // Aplica scorePair com validação obrigatória do primeiro nome
+            let bestMatch = null;
+            let bestScore = 0;
+            for (const c of candidates) {
+                const s = scorePair(rawName, c.name || '');
+                if (s > bestScore) { bestScore = s; bestMatch = c; }
+            }
+
+            // Só considera "já existe" se score >= 0.82 (mesmo threshold do processor)
+            const existsInCache = bestScore >= 0.82 ? bestMatch : null;
 
             if (!grouped.has(normName)) {
                 grouped.set(normName, {
@@ -134,12 +152,12 @@ export default async function handler(req, res) {
                     already_in_cache: !!existsInCache,
                     cache_match: existsInCache ? (existsInCache.name || '') : null,
                     cache_id: existsInCache ? String(existsInCache.id || '') : null,
+                    cache_score: bestScore,
                 });
             } else {
                 const g = grouped.get(normName);
                 g.grouped_ids.push(String(item._id));
                 g.grouped_count++;
-                // Usa o log com mais anexos como representante
                 if ((item.attachments || []).length > (g.attachments || []).length) {
                     grouped.set(normName, { ...item, ...g, grouped_ids: g.grouped_ids, grouped_count: g.grouped_count });
                 }

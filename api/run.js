@@ -124,6 +124,7 @@ export default async function handler(req, res) {
                 total_found: summary.total_found,
                 since_date: sinceDate?.toISOString() || null,
                 started_at: checkpoint?.started_at || new Date().toISOString(),
+                oldest_date_seen: summary.oldest_date_seen || checkpoint?.oldest_date_seen || null,
             });
 
             if (elapsed > TIME_LIMIT) {
@@ -136,6 +137,7 @@ export default async function handler(req, res) {
                     next_offset: offset,
                     total_found: summary.total_found,
                     pct: Math.round(offset / summary.total_found * 100),
+                    oldest_date_seen: summary.oldest_date_seen || null,
                     message: `${offset} de ${summary.total_found} emails (${Math.round(offset / summary.total_found * 100)}%). Clique em Processar para continuar.`,
                     ...lastSummary,
                 });

@@ -272,6 +272,7 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
 
       <div class="last-run" id="last-run-box">
         Última execução<br><span id="last-run-val">—</span>
+        <span id="oldest-date-wrap" style="display:none"><br>Email mais antigo visto:<br><span id="oldest-date-val" style="color:var(--grn)">—</span></span>
       </div>
       <div class="cron-line">Próximo cron: <em id="next-cron">calculando...</em></div>
     </div>
@@ -506,7 +507,12 @@ async function runNow(){
       if(d.incomplete && d.next_offset){
         const pct = d.pct || Math.round(d.next_offset/d.total_found*100);
         pb.style.width = pct+'%';
-        pl.textContent = `${pct}% — ${d.next_offset}/${d.total_found} emails... continuando automaticamente`;
+        const oldestMsg = d.oldest_date_seen ? ' · mais antigo: '+fmtDateShort(d.oldest_date_seen) : '';
+        pl.textContent = pct+'% — '+d.next_offset+'/'+d.total_found+' emails'+oldestMsg;
+        if(d.oldest_date_seen){
+          document.getElementById('oldest-date-wrap').style.display='';
+          document.getElementById('oldest-date-val').textContent = fmtDate(d.oldest_date_seen);
+        }
         toast(`📧 ${pct}% processado — continuando...`,'');
         setRunning(false);
         // Auto-continue — server reads checkpoint
@@ -514,8 +520,12 @@ async function runNow(){
         return;
       } else {
         pb.style.width = '100%';
-        pl.textContent = `✓ Completo`;
-        const msg = `✅ ${d.total_found||d.emails_found||0} emails · ${d.att_uploaded||0} enviados · ${d.att_duplicate||0} duplicatas`;
+        pl.textContent = '✓ Completo';
+        if(d.oldest_date_seen){
+          document.getElementById('oldest-date-wrap').style.display='';
+          document.getElementById('oldest-date-val').textContent = fmtDate(d.oldest_date_seen);
+        }
+        const msg = '✅ '+(d.total_found||d.emails_found||0)+' emails · '+(d.att_uploaded||0)+' enviados · '+(d.att_duplicate||0)+' duplicatas'+(d.oldest_date_seen?' · até '+fmtDateShort(d.oldest_date_seen):'');
         toast(msg,'ok');
         setTimeout(()=>{ pw.style.display='none'; }, 3000);
       }
