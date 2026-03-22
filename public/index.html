@@ -258,12 +258,7 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
       </div>
       <div id="purge-result" style="display:none;margin-top:8px;font-family:var(--mono);font-size:10px;line-height:1.7;max-height:160px;overflow-y:auto"></div>
 
-      <div class="date-field">
-        <label class="date-label" for="since-input">Data retroativa (opcional)</label>
-        <input class="date-input" id="since-input" type="text" placeholder="ex: 15 de março de 2025"
-          oninput="onDateInput(this)" autocomplete="off" spellcheck="false">
-        <div class="date-hint" id="since-hint">deixe vazio para usar a data atual</div>
-      </div>
+
 
       <div class="last-run" id="last-run-box">
         Última execução<br><span id="last-run-val">—</span>
@@ -476,8 +471,6 @@ async function runNow(){
   setRunning(true);
 
   const days = parseInt(document.getElementById('run-days-top').value)||2;
-  const sinceDate = document.getElementById('since-input').value.trim()||null;
-
   // Show progress bar
   const pw = document.getElementById('progress-wrap');
   const pb = document.getElementById('progress-bar');
@@ -486,7 +479,7 @@ async function runNow(){
   pb.style.width = '0%';
   pl.textContent = 'Iniciando...';
 
-  const body = JSON.stringify({ days, since_date: sinceDate||undefined });
+  const body = JSON.stringify({ days });
 
   try{
     const r = await fetch(`${API}/api/run`,{
@@ -668,33 +661,6 @@ function onSearch(q){
   onSearch._t=setTimeout(()=>loadLogs(1),350);
 }
 
-// ── DATE INPUT ─────────────────────────────────────────────
-const MONTHS_PT={janeiro:0,fevereiro:1,março:2,marco:2,abril:3,maio:4,junho:5,julho:6,agosto:7,setembro:8,outubro:9,novembro:10,dezembro:11};
-function parsePtDate(str){
-  if(!str)return null;
-  const clean=str.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const m1=clean.match(/^(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})$/);
-  if(m1){
-    const day=parseInt(m1[1]),month=MONTHS_PT[m1[2]],year=parseInt(m1[3]);
-    if(month===undefined||day<1||day>31||year<2000)return null;
-    return new Date(year,month,day);
-  }
-  const m2=clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if(m2)return new Date(parseInt(m2[3]),parseInt(m2[2])-1,parseInt(m2[1]));
-  const m3=clean.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(m3)return new Date(parseInt(m3[1]),parseInt(m3[2])-1,parseInt(m3[3]));
-  return null;
-}
-
-function onDateInput(el){
-  const v=el.value.trim();
-  const hint=document.getElementById('since-hint');
-  if(!v){ el.className='date-input'; hint.className='date-hint'; hint.textContent='deixe vazio para usar a data atual'; return; }
-  const d=parsePtDate(v);
-  if(d){ el.className='date-input valid'; hint.className='date-hint ok'; hint.textContent='✓ '+d.toLocaleDateString('pt-BR'); }
-  else { el.className='date-input invalid'; hint.className='date-hint err'; hint.textContent='✗ formato inválido — use dd de mês de aaaa'; }
-}
-
 // ── PURGE ──────────────────────────────────────────────────
 async function confirmPurge(){
   if(!confirm('⚠️ Isso vai apagar TODOS os arquivos enviados do Codental e limpar o histórico MongoDB.\n\nTem certeza?')) return;
@@ -762,58 +728,92 @@ async function loadReview(){
       body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:200px;font-family:var(--mono);font-size:11px;color:var(--t2)">✓ Sem pendências</div>';
       return;
     }
-    body.innerHTML=items.map(item=>{
-      const sug=item.pending_suggestion;
-      const name=esc(item.patient_name_extracted||'?');
-      const atts=(item.attachments||[]).length;
-      const date=fmtDate(item.processed_at);
-      const id=String(item._id);
-      return `<div class="rv-item" id="rv-${id}">
-        <div class="rv-name">${name}</div>
-        ${sug?`<div class="rv-sug">→ ${esc(sug.patient_name)} (${Math.round(sug.score*100)}%)</div>`:''}
-        ${item.cpf_extracted||sug?.cpf?`<div class="rv-meta" style="color:var(--blu)">📋 CPF: ${esc(item.cpf_extracted||sug?.cpf)}</div>`:''}
-        <div class="rv-meta">${date} · ${atts} arquivo${atts!==1?'s':''}</div>
-        <div class="rv-btns">
-          ${sug?`<button class="rv-btn confirm" onclick="rvConfirm('${id}','${sug.patient_id}','${esc(sug.patient_name)}')">✓ Confirmar</button>`:''}
-          <button class="rv-btn search" onclick="rvSearch('${id}','${name}')">🔍 Buscar</button>
-          <button class="rv-btn create" onclick="rvCreate('${id}','${name}')">+ Criar paciente</button>
-          <button class="rv-btn reject" onclick="rvReject('${id}')">✕ Ignorar</button>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e){ body.innerHTML=`<div style="color:var(--red);font-family:var(--mono);font-size:11px;padding:20px">Erro: ${e.message}</div>`; }
-}
+    const cards = items.map(item => {
+      const sug      = item.pending_suggestion;
+      const name     = esc(item.patient_name_extracted||'?');
+      const atts     = (item.attachments||[]).length;
+      const date     = fmtDate(item.processed_at);
+      const id       = String(item._id);
+      const gids     = JSON.stringify(item.grouped_ids||[id]);
+      const count    = item.grouped_count||1;
+      const inCache  = item.already_in_cache;
+      const cMatch   = esc(item.cache_match||'');
+      const cId      = esc(item.cache_id||'');
 
+      let html2 = '<div class="rv-item" id="rv-'+id+'">';
+
+      // Nome + badge de agrupamento
+      html2 += '<div class="rv-name">'+name;
+      if(count>1) html2 += '<span style="font-family:var(--mono);font-size:9px;background:rgba(96,165,250,.15);color:var(--blu);border:1px solid rgba(96,165,250,.3);border-radius:3px;padding:1px 6px;margin-left:6px">'+count+' emails</span>';
+      html2 += '</div>';
+
+      // Aviso cache
+      if(inCache) html2 += '<div class="rv-sug" style="color:var(--grn)">✓ Já existe na base: '+cMatch+' — confirme para enviar arquivos</div>';
+
+      // Sugestão (só se não tiver no cache)
+      if(sug && !inCache) html2 += '<div class="rv-sug">→ '+esc(sug.patient_name)+' ('+Math.round(sug.score*100)+'%)</div>';
+
+      // CPF
+      if(item.cpf_extracted||sug?.cpf) html2 += '<div class="rv-meta" style="color:var(--blu)">📋 CPF: '+esc(item.cpf_extracted||sug?.cpf)+'</div>';
+
+      // Data e arquivos
+      html2 += '<div class="rv-meta">'+date+' · '+atts+' arquivo'+(atts!==1?'s':'')+'</div>';
+
+      // Botões
+      html2 += '<div class="rv-btns">';
+      if(sug||inCache){
+        const btnPid  = inCache ? cId : esc(sug?.patient_id||'');
+        const btnName = inCache ? cMatch : esc(sug?.patient_name||'');
+        const btnLabel = inCache ? 'Enviar arquivos' : 'Confirmar';
+        html2 += '<button class="rv-btn confirm" onclick="rvConfirm(''+id+'',''+btnPid+'',''+btnName+'','+gids+')">✓ '+btnLabel+'</button>';
+      }
+      html2 += '<button class="rv-btn search" onclick="rvSearch(''+id+'',''+name+'','+gids+')">🔍 Buscar</button>';
+      html2 += '<button class="rv-btn create" onclick="rvCreate(''+id+'',''+name+'','+gids+')">+ Criar paciente</button>';
+      html2 += '<button class="rv-btn reject" onclick="rvReject(''+id+'','+gids+')">✕ Ignorar tudo</button>';
+      html2 += '</div></div>';
+      return html2;
+    });
+    body.innerHTML = cards.join('');
+  } catch(e){ body.innerHTML='<div style="color:var(--red);font-family:var(--mono);font-size:11px;padding:20px">Erro: '+e.message+'</div>'; }
+}
 function rvDisable(id){
   const el=document.getElementById(`rv-${id}`);
   if(el){ el.style.opacity='.4'; el.querySelectorAll('button').forEach(b=>b.disabled=true); }
 }
 
-async function rvConfirm(id,patientId,patientName){
+async function rvConfirm(id,patientId,patientName,groupedIds=[]){
   rvDisable(id);
   try{
     const r=await fetch(`${API}/api/review`,{method:'POST',
       headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({log_id:id,action:'confirm',patient_id:patientId})});
+      body:JSON.stringify({log_id:id,action:'confirm',patient_id:patientId,grouped_ids:groupedIds})});
     const d=await r.json();
-    if(d.ok){ toast(`✅ ${patientName} confirmado`,'ok'); document.getElementById(`rv-${id}`)?.remove(); }
+    if(d.ok){
+      toast(`✅ ${patientName} confirmado · ${d.affected||1} email(s)`,'ok');
+      document.getElementById(`rv-${id}`)?.remove();
+      (groupedIds||[]).forEach(gid=>{ if(gid!==id) document.getElementById(`rv-${gid}`)?.remove(); });
+    }
     else { toast('Erro: '+d.error,'err'); loadReview(); }
   } catch(e){ toast(e.message,'err'); loadReview(); }
 }
 
-async function rvReject(id){
+async function rvReject(id,groupedIds=[]){
   rvDisable(id);
   try{
     const r=await fetch(`${API}/api/review`,{method:'POST',
       headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({log_id:id,action:'reject'})});
+      body:JSON.stringify({log_id:id,action:'reject',grouped_ids:groupedIds})});
     const d=await r.json();
-    if(d.ok){ toast('Ignorado',''); document.getElementById(`rv-${id}`)?.remove(); }
+    if(d.ok){
+      toast(`Ignorado · ${d.affected||1} email(s)`,'');
+      document.getElementById(`rv-${id}`)?.remove();
+      (groupedIds||[]).forEach(gid=>{ if(gid!==id) document.getElementById(`rv-${gid}`)?.remove(); });
+    }
     else { toast('Erro: '+d.error,'err'); loadReview(); }
   } catch(e){ toast(e.message,'err'); loadReview(); }
 }
 
-async function rvSearch(id,extractedName){
+async function rvSearch(id,extractedName,groupedIds=[]){
   const query=prompt(`Buscar paciente para "${extractedName}":`,extractedName||'');
   if(!query) return;
   try{
@@ -830,11 +830,11 @@ async function rvSearch(id,extractedName){
     if(isNaN(idx)||idx<0||idx>=top.length){ toast('Seleção inválida','err'); return; }
     const sel=top[idx];
     if(confirm(`Confirmar: "${sel.fullName||sel.name}"?`))
-      await rvConfirm(id,String(sel.id),sel.fullName||sel.name);
+      await rvConfirm(id,String(sel.id),sel.fullName||sel.name,groupedIds);
   } catch(e){ toast('Erro: '+e.message,'err'); }
 }
 
-async function rvCreate(id,extractedName){
+async function rvCreate(id,extractedName,groupedIds=[]){
   const name=prompt('Nome completo do paciente:',extractedName||'');
   if(!name) return;
   // Deixar vazio = busca automática nos contatos do Google
@@ -856,7 +856,9 @@ async function rvCreate(id,extractedName){
       const phoneMsg=d.patient_phone?` · 📞 ${d.patient_phone}`:'';
       const cpfMsg=d.patient_cpf?` · 📋 ${d.patient_cpf}`:'';
       toast(`✅ ${name} criado${phoneMsg}${cpfMsg} · ${up} arquivo(s)`,'ok');
+      // Remove todos os cards agrupados do mesmo paciente
       document.getElementById(`rv-${id}`)?.remove();
+      (groupedIds||[]).forEach(gid=>{ if(gid!==id) document.getElementById(`rv-${gid}`)?.remove(); });
     } else { toast('Erro: '+d.error,'err'); loadReview(); }
   } catch(e){ toast(e.message,'err'); loadReview(); }
 }

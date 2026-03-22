@@ -104,11 +104,50 @@ export default async function handler(req, res) {
 
     // ── GET: lista pendências ──────────────────────────────────────────────────
     if (req.method === 'GET') {
-        const pending = await col.find({ status: 'pending_review' })
+        const allPending = await col.find({ status: 'pending_review' })
             .sort({ processed_at: -1 })
-            .limit(100)
+            .limit(200)
             .toArray();
-        return res.status(200).json({ ok: true, total: pending.length, items: pending });
+
+        // Verifica na base local se o paciente já existe pelo nome extraído
+        const patientsCache = (await (await import('../lib/db.js')).db()).collection('patients_cache');
+
+        // Deduplica: para o mesmo nome extraído, agrupa todos os logs
+        // e exibe apenas UM card com todos os IDs de log agrupados
+        const grouped = new Map(); // key: normalized patient name
+
+        for (const item of allPending) {
+            const rawName = item.patient_name_extracted || '';
+            const normName = rawName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+            if (!normName) continue;
+
+            // Verifica se já existe na cache local (prontuário já criado)
+            const existsInCache = await patientsCache.findOne({
+                name_norm: { $regex: normName.split(' ')[0], $options: 'i' }
+            });
+
+            if (!grouped.has(normName)) {
+                grouped.set(normName, {
+                    ...item,
+                    grouped_ids: [String(item._id)],
+                    grouped_count: 1,
+                    already_in_cache: !!existsInCache,
+                    cache_match: existsInCache ? (existsInCache.name || '') : null,
+                    cache_id: existsInCache ? String(existsInCache.id || '') : null,
+                });
+            } else {
+                const g = grouped.get(normName);
+                g.grouped_ids.push(String(item._id));
+                g.grouped_count++;
+                // Usa o log com mais anexos como representante
+                if ((item.attachments || []).length > (g.attachments || []).length) {
+                    grouped.set(normName, { ...item, ...g, grouped_ids: g.grouped_ids, grouped_count: g.grouped_count });
+                }
+            }
+        }
+
+        const items = [...grouped.values()];
+        return res.status(200).json({ ok: true, total: items.length, raw_total: allPending.length, items });
     }
 
     if (req.method !== 'POST') return res.status(405).end();
@@ -119,10 +158,20 @@ export default async function handler(req, res) {
     const log = await col.findOne({ _id: new ObjectId(log_id) });
     if (!log) return res.status(404).json({ error: 'Log não encontrado' });
 
+    // grouped_ids: lista de todos os logs do mesmo paciente para aplicar ação em todos
+    const rawGroupedIds = req.body?.grouped_ids || [log_id];
+    const groupedIds = rawGroupedIds
+        .filter(id => id && id !== log_id)
+        .map(id => { try { return new ObjectId(id); } catch { return null; } })
+        .filter(Boolean);
+
     // ── REJECT ────────────────────────────────────────────────────────────────
     if (action === 'reject') {
-        await col.updateOne({ _id: log._id }, { $set: { status: 'no_patient', pending_suggestion: null, reviewed_at: new Date(), review_action: 'rejected' } });
-        return res.status(200).json({ ok: true, message: 'Marcado como sem paciente' });
+        const rejectSet = { status: 'no_patient', pending_suggestion: null, reviewed_at: new Date(), review_action: 'rejected' };
+        await col.updateOne({ _id: log._id }, { $set: rejectSet });
+        // Aplica em todos os logs agrupados do mesmo paciente
+        if (groupedIds.length) await col.updateMany({ _id: { $in: groupedIds } }, { $set: rejectSet });
+        return res.status(200).json({ ok: true, message: 'Marcado como sem paciente', affected: 1 + groupedIds.length });
     }
 
     // ── CONFIRM ───────────────────────────────────────────────────────────────
@@ -160,18 +209,19 @@ export default async function handler(req, res) {
             confirmedName = p?.fullName || p?.name || p?.full_name || null;
         } catch (_) {}
 
-        await col.updateOne({ _id: log._id }, {
-            $set: {
-                status: 'uploaded',
-                patient_id_codental: String(pid),
-                patient_name_codental: confirmedName,
-                pending_suggestion: null,
-                reviewed_at: new Date(),
-                review_action: 'confirmed',
-            },
-        });
+        const confirmSet = {
+            status: 'uploaded',
+            patient_id_codental: String(pid),
+            patient_name_codental: confirmedName,
+            pending_suggestion: null,
+            reviewed_at: new Date(),
+            review_action: 'confirmed',
+        };
+        await col.updateOne({ _id: log._id }, { $set: confirmSet });
+        // Marca todos os logs agrupados como confirmados (sem reuploar anexos já enviados)
+        if (groupedIds.length) await col.updateMany({ _id: { $in: groupedIds } }, { $set: { ...confirmSet, status: 'duplicate_all' } });
 
-        return res.status(200).json({ ok: true, patient_id: pid, results });
+        return res.status(200).json({ ok: true, patient_id: pid, results, affected: 1 + groupedIds.length });
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
