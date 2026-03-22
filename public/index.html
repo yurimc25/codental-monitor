@@ -1062,34 +1062,26 @@ async function runNow() {
     });
     const d = await r.json();
     if (d.ok) {
-      const datePart = d.since_date ? ` · desde ${fmtDateShort(d.since_date)}` : '';
+      await Promise.all([loadStats(), loadLogs(), loadPendingCount()]);
 
       if (d.incomplete && d.next_offset) {
-        // Ainda tem mais emails — continua automaticamente
-        const pct = Math.round(d.next_offset / d.total_found * 100);
-        toast(`📧 ${d.next_offset}/${d.total_found} emails (${pct}%)... continuando`, '');
-        await Promise.all([loadStats(), loadLogs(), loadPendingCount()]);
-
-        // Aguarda 1s e chama novamente com próximo offset
-        await new Promise(r => setTimeout(r, 1000));
-        const days2 = parseInt(document.getElementById('run-days-top')?.value) || 2;
-        const r2 = await fetch(`${API}/api/run`, {
-          method: 'POST',
-          headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ days: days2, offset: d.next_offset }),
+        // Tem checkpoint salvo — continua automaticamente após 2s
+        const pct = d.pct || Math.round(d.next_offset / d.total_found * 100);
+        toast(`📧 ${pct}% — ${d.next_offset}/${d.total_found} emails... continuando automaticamente`, '');
+        setRunning(true);
+        // Atualiza label dos botões com progresso
+        ['run-btn','run-btn2'].forEach(id => {
+          const b = document.getElementById(id);
+          if (b) b.textContent = `⏳ ${pct}% (${d.next_offset}/${d.total_found})`;
         });
-        const d2 = await r2.json();
-        if (d2.ok) {
-          const msg2 = d2.incomplete
-            ? `📧 ${d2.next_offset}/${d2.total_found} processados — clique novamente para continuar`
-            : `✅ Completo! ${d2.total_found || d2.emails_found} emails · ${d2.att_uploaded} enviados · ${d2.att_duplicate} duplicatas`;
-          toast(msg2, d2.incomplete ? '' : 'ok');
-        }
-        await Promise.all([loadStats(), loadLogs(), loadPendingCount()]);
+        // Continua automaticamente
+        await new Promise(r => setTimeout(r, 2000));
+        await runNow(); // chama recursivamente — o servidor vai ler o checkpoint
       } else {
-        const msg = `${d.total_found || d.emails_found} emails${datePart} · ${d.att_uploaded} enviados · ${d.att_duplicate} duplicatas`;
+        const msg = d.complete
+          ? `✅ Completo! ${d.total_found || d.emails_found} emails · ${d.att_uploaded} enviados`
+          : `${d.total_found || d.emails_found || 0} emails · ${d.att_uploaded || 0} enviados · ${d.att_duplicate || 0} duplicatas`;
         toast(msg, 'ok');
-        await Promise.all([loadStats(), loadLogs(), loadPendingCount()]);
       }
     } else {
       toast('Erro: ' + (d.error || 'desconhecido'), 'err');
@@ -1566,7 +1558,9 @@ Digite o nome (ou parte dele):`, extractedName || '');
 `; });
     if (allResults.length > 10) msg += `... e mais ${allResults.length - 10}`;
 
-    const choice = prompt(msg + 'Digite o NÚMERO do paciente desejado (ou 0 para buscar outro):');
+    const choice = prompt(msg + '
+
+Digite o NÚMERO do paciente desejado (ou 0 para buscar outro):');
     if (!choice) return;
     
     const idx = parseInt(choice) - 1;

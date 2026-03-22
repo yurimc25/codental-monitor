@@ -1,5 +1,6 @@
 // api/run.js — Disparo manual e cron
 import { run } from '../lib/processor.js';
+import { cors } from '../lib/cors.js';
 export const config = { maxDuration: 300 };
 
 // Meses em português → número (0-based)
@@ -36,6 +37,7 @@ function parsePtDate(str) {
 }
 
 export default async function handler(req, res) {
+    if (cors(req, res)) return;
     const auth = req.headers.authorization;
     const key  = req.headers['x-api-key'];
     const cronSecret = process.env.CRON_SECRET;
@@ -58,48 +60,75 @@ export default async function handler(req, res) {
     }
 
     const days = parseInt(req.body?.days) || 2;
-    // Offset inicial (0 = começo, ou continua de onde parou)
-    const startOffset = parseInt(req.body?.offset) || 0;
+    // Verifica se há checkpoint salvo (continuação automática)
+    const forceRestart = req.body?.restart === true;
+    let checkpoint = forceRestart ? null : await getCheckpoint();
+
+    // Se o checkpoint é de um período diferente, ignora
+    if (checkpoint && checkpoint.days !== days) {
+        console.log(`⚠️ Checkpoint de ${checkpoint.days} dias, pedido de ${days} dias — reiniciando`);
+        checkpoint = null;
+        await clearCheckpoint();
+    }
+
+    const startOffset  = checkpoint?.next_offset || parseInt(req.body?.offset) || 0;
+    const effectiveDays = checkpoint?.days || days;
+    const totalFound   = checkpoint?.total_found || 0;
+
+    console.log(`📌 ${checkpoint ? `Retomando checkpoint: offset ${startOffset}/${totalFound}` : 'Início fresh'}`);
 
     try {
-        // Processa em lotes de 80, iterando até acabar ou atingir 270s
         const started    = Date.now();
-        const TIME_LIMIT = 260_000; // 260s — margem de 40s antes do timeout de 300s
+        const TIME_LIMIT = 250_000; // 250s de margem
         let offset       = startOffset;
         let lastSummary  = null;
         let iterations   = 0;
 
         while (true) {
             iterations++;
-            console.log(`
-🔄 Iteração ${iterations} — offset: ${offset}`);
+            console.log(`\n🔄 Iteração ${iterations} — offset: ${offset}`);
 
-            const summary = await run({ sinceDate, days, includeRead: true, offset, batchSize: 80 });
+            const summary = await run({ sinceDate, days: effectiveDays, includeRead: true, offset, batchSize: 80 });
             lastSummary   = summary;
             offset        = summary.next_offset || 0;
 
             const elapsed = Date.now() - started;
-            console.log(`⏱ ${elapsed}ms | has_more: ${summary.has_more} | next_offset: ${offset}`);
+            console.log(`⏱ ${elapsed}ms | has_more: ${summary.has_more} | next_offset: ${offset} | total: ${summary.total_found}`);
 
-            // Para se não há mais emails ou se está perto do timeout
-            if (!summary.has_more) break;
+            if (!summary.has_more) {
+                // Concluído — apaga checkpoint
+                await clearCheckpoint();
+                console.log(`✅ Varredura completa! ${summary.total_found} emails processados.`);
+                break;
+            }
+
             if (elapsed > TIME_LIMIT) {
-                console.log(`⚠️ Tempo limite atingido. Próxima chamada deve usar offset: ${offset}`);
+                // Salva checkpoint para próxima chamada
+                await saveCheckpoint({
+                    days: effectiveDays,
+                    next_offset: offset,
+                    total_found: summary.total_found,
+                    since_date: sinceDate?.toISOString() || null,
+                    started_at: checkpoint?.started_at || new Date().toISOString(),
+                });
+                console.log(`⏸ Checkpoint salvo: offset ${offset}/${summary.total_found}`);
+
                 return res.status(200).json({
                     ok: true,
                     ran_at: new Date().toISOString(),
                     incomplete: true,
                     next_offset: offset,
-                    message: `Processados ${offset} de ${lastSummary.total_found} emails. Clique em processar novamente para continuar.`,
+                    total_found: summary.total_found,
+                    pct: Math.round(offset / summary.total_found * 100),
+                    message: `${offset} de ${summary.total_found} emails (${Math.round(offset / summary.total_found * 100)}%). Clique em Processar para continuar.`,
                     ...lastSummary,
                 });
             }
 
-            // Pausa entre lotes
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 300));
         }
 
-        return res.status(200).json({ ok: true, ran_at: new Date().toISOString(), iterations, ...lastSummary });
+        return res.status(200).json({ ok: true, ran_at: new Date().toISOString(), iterations, complete: true, ...lastSummary });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ ok: false, error: err.message });
