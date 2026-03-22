@@ -246,6 +246,9 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
         Incluir emails já lidos
       </label>
       <button class="btn" style="width:100%;justify-content:center" onclick="loadLogs()">↻ Atualizar logs</button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:4px;color:var(--blu);border-color:rgba(96,165,250,.3)" onclick="reconnectGmail()" title="Necessário após adicionar novos escopos (ex: contatos do Google)">
+        🔗 Reconectar Gmail
+      </button>
       <button class="btn" style="width:100%;justify-content:center;margin-top:4px;font-size:9px;color:var(--t3)" onclick="clearCheckpoint()" id="clear-cp-btn" title="Limpa o ponto de retomada salvo e força nova varredura do início">
         ↺ Reiniciar varredura do zero
       </button>
@@ -422,7 +425,7 @@ async function checkGmail(){
 }
 
 function connectGmail(){
-  window.location.href = `${API}/api/gmail/auth`;
+  window.location.href = `${API}/api/gmail/auth?force=1`;
 }
 
 // ── STATS ──────────────────────────────────────────────────
@@ -525,6 +528,32 @@ async function runNow(){
     pw.style.display = 'none';
   } finally {
     setRunning(false);
+  }
+}
+
+// ── GMAIL RECONNECT ─────────────────────────────────────────
+function reconnectGmail(){
+  if(!confirm('Isso vai redirecionar para o Google para autorizar novamente.\nNecessário para ativar acesso aos Contatos do Google (People API).\n\nContinuar?')) return;
+  window.location.href = `${API}/api/gmail/auth?force=1`;
+}
+
+// ── CHECKPOINT ──────────────────────────────────────────────
+async function clearCheckpoint(){
+  if(!confirm('Limpar o checkpoint e reiniciar a varredura do zero?\n\nEmails já enviados com sucesso não serão reenviados.')) return;
+  const btn = document.getElementById('clear-cp-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Limpando...'; }
+  try{
+    const r = await fetch(`${API}/api/run`,{
+      method:'POST',
+      headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({restart: true})
+    });
+    const d = await r.json();
+    if(d.ok) toast('✓ Checkpoint limpo — clique em Processar para iniciar do zero','ok');
+    else toast('Erro: '+(d.error||'falhou'),'err');
+  } catch(e){ toast(e.message,'err'); }
+  finally{
+    if(btn){ btn.disabled=false; btn.textContent='↺ Reiniciar varredura do zero'; }
   }
 }
 
