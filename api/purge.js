@@ -136,6 +136,10 @@ export default async function handler(req, res) {
             }
         }
 
+        // Apaga todos os logs do MongoDB após limpeza
+        const logsDeleted = await col.deleteMany({});
+        console.log(`🗑 Logs apagados: ${logsDeleted.deletedCount}`);
+
         return res.status(200).json({
             ok: true,
             dry_run: false,
@@ -143,6 +147,7 @@ export default async function handler(req, res) {
             total_deleted:  totalDeleted,
             total_not_found: totalNotFound,
             total_errors:   errors.length,
+            logs_deleted:   logsDeleted.deletedCount,
             results,
         });
 

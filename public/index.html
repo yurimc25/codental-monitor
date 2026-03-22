@@ -797,7 +797,7 @@ body {
         🧹 Fazer limpeza geral
       </button>
       <div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:5px;line-height:1.5">
-        Apaga do Codental todos os arquivos enviados por esta plataforma
+        Apaga do Codental todos os arquivos enviados e limpa o histórico — depois é só clicar em Processar
       </div>
       <div id="purge-result" style="display:none;margin-top:8px;font-family:var(--mono);font-size:10px;line-height:1.7;max-height:160px;overflow-y:auto"></div>
       <div class="date-field">
@@ -1715,11 +1715,12 @@ async function runPurge(dryRun) {
       toast(`${d.total} arquivo(s) seriam removidos`, 'info');
     } else {
       out.innerHTML = `
-        <div style="color:var(--grn)">✓ ${d.deleted} arquivo(s) deletados do Codental</div>
-        ${d.errors > 0 ? `<div style="color:var(--red)">❌ ${d.errors} erro(s)</div>` : ''}
+        <div style="color:var(--grn)">✓ ${d.total_deleted} arquivo(s) deletados do Codental</div>
+        <div style="color:var(--grn)">✓ ${d.logs_deleted || 0} log(s) apagados — pronto para reprocessar</div>
+        ${d.total_errors > 0 ? `<div style="color:var(--red)">❌ ${d.total_errors} erro(s)</div>` : ''}
       `;
-      toast(`Limpeza concluída: ${d.deleted} deletados, ${d.errors} erros`, d.errors ? 'err' : 'ok');
-      await loadLogs();
+      toast(`Limpeza concluída: ${d.total_deleted} deletados, histórico limpo`, d.total_errors ? 'err' : 'ok');
+      await Promise.all([loadLogs(), loadStats(), loadPendingCount()]);
     }
   } catch (e) {
     out.innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`;
