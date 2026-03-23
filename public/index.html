@@ -617,12 +617,15 @@ async function retryErrors(){
   }
 }
 
-async function reverifyAttachments(logId, messageId){
+async function reverifyAttachments(logId, messageId, subject){
   const btn = event.target;
   btn.disabled = true;
   btn.textContent = '⏳ Verificando...';
   try {
-    const r = await fetch('/api/debug-search?action=attachments&message_id='+encodeURIComponent(messageId), {
+    const params = subject
+      ? 'action=attachments&subject='+encodeURIComponent(subject)
+      : 'action=attachments&message_id='+encodeURIComponent(messageId);
+    const r = await fetch('/api/debug-search?'+params, {
       headers:{'x-api-key': API_KEY}
     });
     const d = await r.json();
@@ -802,8 +805,8 @@ function buildDetail(log){
         : '');
   // Botão reverificar — sempre visível, busca anexos do Gmail independente do status
   const btnReverify = '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--muted);border-color:rgba(148,163,184,.3)"'
-    +' data-lid="'+id+'" data-mid="'+esc(log.gmail_message_id||'')+'"'
-    +' onclick="reverifyAttachments(this.dataset.lid,this.dataset.mid)" title="Rebusca os anexos diretamente no Gmail e mostra o que encontrou">🔎 Reverificar anexos</button>';
+    +' data-lid="'+id+'" data-mid="'+esc(log.gmail_message_id||'')+'" data-subj="'+esc(log.subject||'')+'"'
+    +' onclick="reverifyAttachments(this.dataset.lid,this.dataset.mid,this.dataset.subj)" title="Rebusca os anexos diretamente no Gmail pelo assunto do email">🔎 Reverificar anexos</button>';
 
   const actionBtns = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+btnReenvio+btnReverify+'</div>';
 
