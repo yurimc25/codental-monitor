@@ -630,11 +630,33 @@ async function reverifyAttachments(logId, messageId, subject){
     });
     const d = await r.json();
     if(d.attachments && d.attachments.length > 0){
-      alert('📎 Anexos encontrados no Gmail ('+d.attachments.length+'):\n\n'
-        + d.attachments.map(a => '• '+a.filename+' ('+Math.round((a.size||0)/1024)+'KB) — '+a.mimeType).join('\n')
-        + '\n\nClique em "Forçar reenvio" para enviar ao Codental.');
+      // Atualiza o log no banco com os anexos encontrados
+      const updateRes = await fetch('/api/logs', {
+        method: 'PATCH',
+        headers: {'x-api-key': API_KEY, 'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          log_id: logId,
+          message_id: d.message_id || messageId,
+          attachments: d.attachments.map(a => ({
+            filename: a.filename,
+            mime_type: a.mimeType,
+            size_bytes: a.size,
+            status: 'pending',
+          })),
+          status: 'retry',
+        })
+      });
+      const upd = await updateRes.json();
+      if(upd.ok){
+        alert('✅ Log atualizado com '+d.attachments.length+' anexo(s):\n\n'
+          + d.attachments.map(a => '• '+a.filename+' ('+Math.round((a.size||0)/1024)+'KB)').join('\n')
+          + '\n\nClique em "↑ Forçar reenvio de arquivos" para enviar ao Codental.');
+        loadLogs();
+      } else {
+        alert('📎 Anexos encontrados ('+d.attachments.length+') mas erro ao salvar:\n'+JSON.stringify(upd));
+      }
     } else {
-      alert('⚠️ Nenhum anexo encontrado neste email no Gmail.\n\nMessage ID: '+messageId);
+      alert('⚠️ Nenhum anexo encontrado neste email no Gmail.\n\nAssunto: '+subject+'\nMessage ID: '+messageId);
     }
   } catch(e){
     alert('Erro ao verificar: '+e.message);
