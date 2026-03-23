@@ -15,7 +15,9 @@ if (!EMAIL || !PASSWORD || !MONGO) {
 }
 
 let browser;
-const client = new MongoClient(MONGO);
+// Garante que conecta no banco correto mesmo se a URI não especificar
+const mongoUri = MONGO.includes('/codental_monitor') ? MONGO : MONGO.replace('/?', '/codental_monitor?');
+const client = new MongoClient(mongoUri);
 
 try {
     console.log('🌐 Iniciando browser...');
@@ -67,7 +69,7 @@ try {
 
     // 7. Salva no MongoDB
     await client.connect();
-    const col = client.db().collection('settings');
+    const col = client.db('codental_monitor').collection('settings');
     await col.updateOne(
         { _id: 'codental_session' },
         { $set: { cookie: cookieStr, csrf, saved_at: new Date() } },
