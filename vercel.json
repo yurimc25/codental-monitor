@@ -1,14 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/run",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/run?continue=1",
-      "schedule": "0 * * * *"
-    }
-  ],
   "functions": {
     "api/run.js": {
       "maxDuration": 300
