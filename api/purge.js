@@ -11,44 +11,17 @@ import { db } from '../lib/db.js';
 
 export const config = { maxDuration: 300 };
 
-const APP_BASE  = 'https://odonto-on-face.codental.com.br';
-const LOGIN_URL = 'https://www.codental.com.br/login';
+const APP_BASE  = 'https://app.codental.com.br';
+const LOGIN_URL = 'https://app.codental.com.br/login';
 
 // ─── SESSION ──────────────────────────────────────────────────────────────────
-let _sess = null, _sessAt = 0;
-
 async function sess() {
-    if (_sess && Date.now() - _sessAt < 4 * 60 * 1000) return _sess;
-
-    const pg   = await fetch(LOGIN_URL, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' } });
-    const htm  = await pg.text();
-    const raw  = pg.headers.get('set-cookie') || '';
-    const csrf = (htm.match(/<meta[^>]+name=["']csrf-token["'][^>]+content=["']([^"']+)/i) || [])[1] || '';
-    const init = (raw.match(/_domain_session=[^;,]+/) || [])[0] || '';
-
-    const lr = await fetch(LOGIN_URL, {
-        method: 'POST', redirect: 'manual',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': init, 'User-Agent': 'Mozilla/5.0' },
-        body: new URLSearchParams({
-            'professional[email]':    process.env.CODENTAL_EMAIL,
-            'professional[password]': process.env.CODENTAL_PASSWORD,
-            authenticity_token: csrf,
-        }).toString(),
-    });
-
-    const sc     = lr.headers.get('set-cookie') || '';
-    const cookie = (sc.match(/_domain_session=[^;,]+/) || [])[0];
-    if (!cookie) throw new Error('Login Codental falhou');
-
-    const ar = await fetch(`${APP_BASE}/patients`, { headers: { 'Cookie': cookie, 'User-Agent': 'Mozilla/5.0' } });
-    const ah = await ar.text();
-    const ac = (ah.match(/<meta[^>]+name=["']csrf-token["'][^>]+content=["']([^"']+)/i) || [])[1] || csrf;
-    const nc = (ar.headers.get('set-cookie') || '').match(/_domain_session=[^;,]+/)?.[0] || cookie;
-
-    _sess = { cookie: nc, csrf: ac };
-    _sessAt = Date.now();
-    console.log('✅ Session OK para purge');
-    return _sess;
+    const { db } = await import('../lib/db.js');
+    const col = (await db()).collection('settings');
+    const doc = await col.findOne({ _id: 'codental_session' });
+    if (!doc?.cookie || !doc?.csrf) throw new Error('Sem sessão no banco — rode o refresh-session.js');
+    console.log('✅ Session OK para purge (do banco)');
+    return { cookie: doc.cookie, csrf: doc.csrf };
 }
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────────
@@ -214,7 +187,7 @@ async function purgePatient(patientId, patientName, filenames) {
 async function listUploadsFromPage(patientId) {
     const s   = await sess();
     const res = await fetch(`${APP_BASE}/patients/${patientId}/uploads`, {
-        headers: { 'Cookie': s.cookie, 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' },
+        headers: { 'Cookie': s.cookie, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36', 'Accept': 'text/html' },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
@@ -251,7 +224,7 @@ async function deleteUpload(patientId, uploadId) {
             'Accept':             'text/vnd.turbo-stream.html, text/html, application/xhtml+xml',
             'Origin':             APP_BASE,
             'Referer':            `${APP_BASE}/patients/${patientId}/uploads`,
-            'User-Agent':         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent':         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         },
         body: new URLSearchParams({ _method: 'delete', authenticity_token: s.csrf }).toString(),
     });
