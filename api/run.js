@@ -63,15 +63,64 @@ export default async function handler(req, res) {
 
     const days = parseInt(req.body?.days) || 2;
     const includeRead = req.body?.include_read !== false;
+    // Chave do checkpoint: separa varredura horária da histórica
+    const checkpointKey = days <= 1 ? 'checkpoint_hourly' : 'checkpoint_historical';
 
     // Só limpa o checkpoint sem processar (usado pelo botão "Reiniciar do zero")
     if (req.body?.restart === true) {
-        await clearCheckpoint();
+        await clearCheckpoint(checkpointKey);
         return res.status(200).json({ ok: true, message: 'Checkpoint limpo. Próxima varredura começa do início.' });
+    }
+
+    // Modo retry_errors: reprocessa apenas emails com erro, sem anexos ou upload incompleto
+    if (req.body?.retry_errors === true) {
+        const { db } = await import('../lib/db.js');
+        const col = (await db()).collection('email_logs');
+        // Busca logs com problemas: erro, sem anexos detectados, ou com algum anexo não enviado
+        const errorLogs = await col.find({
+            $or: [
+                { status: 'error' },
+                { status: 'no_attachments' },
+                { 'attachments.status': 'error' },
+                { status: 'uploaded', attachments: { $size: 0 } },
+                { status: 'uploaded', 'attachments.0': { $exists: false } },
+            ]
+        }).toArray();
+
+        console.log(`🔁 retry_errors: ${errorLogs.length} emails com problema encontrados`);
+
+        if (errorLogs.length === 0) {
+            return res.status(200).json({ ok: true, summary: { emails_processed: 0, att_uploaded: 0, att_duplicate: 0, att_error: 0 } });
+        }
+
+        // Processa diretamente os message IDs dos logs com erro — sem varrer todos os emails
+        const { processSpecificMessages } = await import('../lib/processor.js');
+        const messageIds = errorLogs.map(l => ({ id: l.gmail_message_id, threadId: l.gmail_thread_id }));
+        const summary = await processSpecificMessages(messageIds);
+
+        return res.status(200).json({
+            ok: true,
+            summary: {
+                emails_processed: summary.emails_processed || 0,
+                att_uploaded:     summary.att_uploaded || 0,
+                att_duplicate:    summary.att_duplicate || 0,
+                att_error:        summary.att_error || 0,
+            }
+        });
+    }
+
+    // Modo "continue" (cron horário): só processa se houver checkpoint ativo
+    const continueMode = req.query?.continue === '1';
+    if (continueMode) {
+        const existing = await getCheckpoint(checkpointKey);
+        if (!existing?.next_offset) {
+            return res.status(200).json({ ok: true, message: 'Nenhum checkpoint ativo. Nada a fazer.' });
+        }
+        console.log(`⏰ Cron continue: retomando checkpoint offset ${existing.next_offset}/${existing.total_found}`);
     } // padrão: true (lidos e não lidos)
     // Verifica se há checkpoint salvo (continuação automática)
     const forceRestart = req.body?.restart === true;
-    let checkpoint = forceRestart ? null : await getCheckpoint();
+    let checkpoint = forceRestart ? null : await getCheckpoint(checkpointKey);
 
     // Se o checkpoint é de um período diferente OU de includeRead diferente → reinicia
     if (checkpoint) {
@@ -80,7 +129,7 @@ export default async function handler(req, res) {
         if (!sameDays || !sameRead) {
             console.log(`⚠️ Checkpoint incompatível (days: ${checkpoint.days}→${days}, read: ${checkpoint.includeRead}→${includeRead}) — reiniciando`);
             checkpoint = null;
-            await clearCheckpoint();
+            await clearCheckpoint(checkpointKey);
         }
     }
 
@@ -111,7 +160,7 @@ export default async function handler(req, res) {
 
             if (!summary.has_more) {
                 // Concluído — apaga checkpoint
-                await clearCheckpoint();
+                await clearCheckpoint(checkpointKey);
                 console.log(`✅ Varredura completa! ${summary.total_found} emails processados.`);
                 break;
             }
@@ -125,7 +174,7 @@ export default async function handler(req, res) {
                 since_date: sinceDate?.toISOString() || null,
                 started_at: checkpoint?.started_at || new Date().toISOString(),
                 oldest_date_seen: summary.oldest_date_seen || checkpoint?.oldest_date_seen || null,  // mantém o mais antigo de todos os lotes
-            });
+            }, checkpointKey);
 
             if (elapsed > TIME_LIMIT) {
                 console.log(`⏸ Checkpoint salvo: offset ${offset}/${summary.total_found}`);

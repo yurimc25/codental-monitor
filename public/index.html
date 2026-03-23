@@ -253,6 +253,11 @@ body{background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:13p
         ↺ Reiniciar varredura do zero
       </button>
 
+      <button class="btn" style="width:100%;justify-content:center;margin-top:4px;color:var(--grn);border-color:rgba(34,197,94,.3)" id="retry-errors-btn" onclick="retryErrors()" title="Reprocessa emails com erro ou sem anexos detectados">
+        🔁 Reprocessar emails com erro
+        <span id="retry-badge" style="display:none;background:var(--r);color:#fff;border-radius:3px;padding:0 5px;font-size:9px;margin-left:4px"></span>
+      </button>
+
       <button class="btn" style="width:100%;justify-content:center;margin-top:6px;color:var(--amb);border-color:rgba(245,158,11,.3)" onclick="openReview()">
         ⏳ Revisar pendências
         <span id="review-badge" style="display:none;background:var(--amb);color:#000;border-radius:3px;padding:0 5px;font-size:9px;margin-left:4px"></span>
@@ -579,6 +584,63 @@ async function reprocessLog(logId, patientId, patientName){
   } catch(e){ toast(e.message,'err'); }
 }
 
+async function retryErrors(){
+  const btn = document.getElementById('retry-errors-btn');
+  if(!btn) return;
+  if(!confirm('Reprocessar todos os emails com erro, sem anexos ou com upload incompleto?\n\nIsto vai verificar os anexos no Gmail e enviar os arquivos únicos que ainda não foram enviados.')) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Reprocessando...';
+  try {
+    const r = await fetch('/api/run', {
+      method: 'POST',
+      headers: {'x-api-key': GM_APIKEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify({ retry_errors: true, days: 30, include_read: true })
+    });
+    const d = await r.json();
+    if(d.ok || d.summary){
+      const s = d.summary || {};
+      alert('✅ Reprocessamento concluído!\n\n'
+        + '📧 Emails processados: '+(s.emails_processed||0)+'\n'
+        + '✅ Arquivos enviados: '+(s.att_uploaded||0)+'\n'
+        + '⏭ Duplicatas ignoradas: '+(s.att_duplicate||0)+'\n'
+        + '❌ Erros: '+(s.att_error||0));
+      loadLogs();
+      loadStats();
+    } else {
+      alert('Resposta: '+JSON.stringify(d).slice(0,200));
+    }
+  } catch(e){
+    alert('Erro: '+e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔁 Reprocessar emails com erro';
+  }
+}
+
+async function reverifyAttachments(logId, messageId){
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ Verificando...';
+  try {
+    const r = await fetch('/api/debug-search?action=attachments&message_id='+encodeURIComponent(messageId), {
+      headers:{'x-api-key': GM_APIKEY}
+    });
+    const d = await r.json();
+    if(d.attachments && d.attachments.length > 0){
+      alert('📎 Anexos encontrados no Gmail ('+d.attachments.length+'):\n\n'
+        + d.attachments.map(a => '• '+a.filename+' ('+Math.round((a.size||0)/1024)+'KB) — '+a.mimeType).join('\n')
+        + '\n\nClique em "Forçar reenvio" para enviar ao Codental.');
+    } else {
+      alert('⚠️ Nenhum anexo encontrado neste email no Gmail.\n\nMessage ID: '+messageId);
+    }
+  } catch(e){
+    alert('Erro ao verificar: '+e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔎 Reverificar anexos';
+  }
+}
+
 async function reprocessSearch(logId, extractedName){
   const query = prompt('Buscar paciente:', extractedName||'');
   if(!query) return;
@@ -738,7 +800,12 @@ function buildDetail(log){
           +' data-lid="'+id+'" data-pid="'+esc(sug.patient_id||'')+'" data-pname="'+esc(sug.patient_name||'')+'"'
           +' onclick="reprocessLog(this.dataset.lid,this.dataset.pid,this.dataset.pname)">✓ Confirmar sugestão</button>'
         : '');
-  const actionBtns = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+btnReenvio+'</div>';
+  // Botão reverificar — sempre visível, busca anexos do Gmail independente do status
+  const btnReverify = '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--muted);border-color:rgba(148,163,184,.3)"'
+    +' data-lid="'+id+'" data-mid="'+esc(log.gmail_message_id||'')+'"'
+    +' onclick="reverifyAttachments(this.dataset.lid,this.dataset.mid)" title="Rebusca os anexos diretamente no Gmail e mostra o que encontrou">🔎 Reverificar anexos</button>';
+
+  const actionBtns = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+btnReenvio+btnReverify+'</div>';
 
   return '<div class="detail-head">Email</div>'
     +'<div class="detail-meta">'
