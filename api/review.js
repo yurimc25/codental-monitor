@@ -35,8 +35,10 @@ async function uploadAttachmentsForLog(log, patientId) {
 
     const results = [];
 
+    // Usa alt_message_id se disponível (email encontrado por assunto é diferente do original)
+    const effectiveMessageId = log.alt_message_id || log.gmail_message_id;
     try {
-        const message = await getMessage(log.gmail_message_id);
+        const message = await getMessage(effectiveMessageId);
         const gmailAtts = getAttachments(message);
 
         // Usa anexos do log OU do Gmail diretamente se log.attachments estiver vazio
@@ -67,7 +69,7 @@ async function uploadAttachmentsForLog(log, patientId) {
                     continue;
                 }
 
-                const buffer = await downloadAttachment(log.gmail_message_id, gmailAtt.attachmentId, gmailAtt.dataInline || null);
+                const buffer = await downloadAttachment(effectiveMessageId, gmailAtt.attachmentId, gmailAtt.dataInline || null);
                 const { uploadId } = await uploadFile(patientId, buffer, att.filename, att.mime_type || gmailAtt.mimeType || 'application/octet-stream');
                 entry.status = 'uploaded';
                 entry.codental_upload_id = uploadId;

@@ -16,8 +16,8 @@ export default async function handler(req, res) {
             const update = {};
             if (attachments) update.attachments = attachments;
             if (status)      update.status = status;
-            // Atualiza o gmail_message_id se o email foi encontrado por assunto e é diferente
-            if (update_message_id && message_id) update.gmail_message_id = message_id;
+            // Salva ID alternativo sem sobrescrever o original (evita E11000 duplicate key)
+            if (update_message_id && message_id) update.alt_message_id = message_id;
             update.updated_at = new Date();
             const col = (await db()).collection('email_logs');
             const r = await col.updateOne(query, { $set: update });
