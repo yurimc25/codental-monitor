@@ -191,8 +191,12 @@ export default async function handler(req, res) {
         const pid = patient_id || log.pending_suggestion?.patient_id;
         if (!pid) return res.status(400).json({ error: 'patient_id necessário' });
 
-        // Reprocessa os anexos para este paciente
-        const gmailMsgId = log.gmail_message_id;
+        // Relê o log do banco para garantir anexos atualizados (ex: após reverificar)
+        const freshLog = await col.findOne({ _id: new ObjectId(log_id) });
+        const currentLog = freshLog || log;
+
+        // Usa alt_message_id se disponível (email encontrado por assunto)
+        const gmailMsgId = currentLog.alt_message_id || currentLog.gmail_message_id;
         const results = [];
 
         // Recarrega mensagem do Gmail uma vez para todos os anexos
@@ -205,7 +209,16 @@ export default async function handler(req, res) {
             console.error('Erro ao buscar mensagem Gmail:', err.message);
         }
 
-        for (const att of log.attachments || []) {
+        // Se não achou anexos no Gmail pelo ID, tenta o ID original
+        if (gmailAtts.length === 0 && currentLog.alt_message_id) {
+            try {
+                const origMsg = await getMessage(currentLog.gmail_message_id);
+                const origAtts = getAttachments(origMsg);
+                if (origAtts.length > 0) gmailAtts.push(...origAtts);
+            } catch(_) {}
+        }
+
+        for (const att of currentLog.attachments || []) {
             // Força reenvio de todos (inclusive já enviados anteriormente)
             try {
                 const gmailAtt = gmailAtts.find(a => a.filename === att.filename);
