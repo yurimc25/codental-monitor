@@ -241,6 +241,12 @@ export default async function handler(req, res) {
             confirmedName = p?.fullName || p?.name || p?.full_name || null;
         } catch (_) {}
 
+        // Atualiza status de cada anexo com o resultado do upload
+        const updatedAtts = (currentLog.attachments || []).map(att => {
+            const r = results.find(x => x.filename === att.filename);
+            return r ? { ...att, status: r.status, error_message: r.error || null } : att;
+        });
+
         const confirmSet = {
             status: 'uploaded',
             patient_id_codental: String(pid),
@@ -248,6 +254,7 @@ export default async function handler(req, res) {
             pending_suggestion: null,
             reviewed_at: new Date(),
             review_action: 'confirmed',
+            attachments: updatedAtts,
         };
         await col.updateOne({ _id: log._id }, { $set: confirmSet });
         // Marca todos os logs agrupados como confirmados (sem reuploar anexos já enviados)
