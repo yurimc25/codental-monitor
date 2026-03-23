@@ -593,7 +593,7 @@ async function retryErrors(){
   try {
     const r = await fetch('/api/run', {
       method: 'POST',
-      headers: {'x-api-key': GM_APIKEY, 'Content-Type': 'application/json'},
+      headers: {'x-api-key': API_KEY, 'Content-Type': 'application/json'},
       body: JSON.stringify({ retry_errors: true, days: 30, include_read: true })
     });
     const d = await r.json();
@@ -623,7 +623,7 @@ async function reverifyAttachments(logId, messageId){
   btn.textContent = '⏳ Verificando...';
   try {
     const r = await fetch('/api/debug-search?action=attachments&message_id='+encodeURIComponent(messageId), {
-      headers:{'x-api-key': GM_APIKEY}
+      headers:{'x-api-key': API_KEY}
     });
     const d = await r.json();
     if(d.attachments && d.attachments.length > 0){
