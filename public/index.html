@@ -636,7 +636,10 @@ async function reverifyAttachments(logId, messageId, subject){
         headers: {'x-api-key': API_KEY, 'Content-Type': 'application/json'},
         body: JSON.stringify({
           log_id: logId,
-          message_id: d.message_id || messageId,
+          // Se o assunto encontrou um email diferente, atualiza o message_id no log
+          // para que o download dos anexos use o ID correto
+          message_id: d.message_id && d.message_id !== messageId ? d.message_id : messageId,
+          update_message_id: d.message_id && d.message_id !== messageId,
           attachments: d.attachments.map(a => ({
             filename: a.filename,
             mime_type: a.mimeType,
