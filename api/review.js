@@ -9,7 +9,7 @@
 import { db } from '../lib/db.js';
 import { cors } from '../lib/cors.js';
 import { uploadFile, searchPatients } from '../lib/codental.js';
-import { downloadAttachment, getMessage, getHeaders, getAttachments, findPhoneInContacts } from '../lib/gmail.js';
+import { downloadAttachment, getMessage, getHeaders, getAttachments, findPhoneInContacts, markAsRead } from '../lib/gmail.js';
 import { ObjectId } from 'mongodb';
 
 export const config = { maxDuration: 300 };
@@ -39,7 +39,16 @@ async function uploadAttachmentsForLog(log, patientId) {
         const message = await getMessage(log.gmail_message_id);
         const gmailAtts = getAttachments(message);
 
-        for (const att of (log.attachments || [])) {
+        // Usa anexos do log OU do Gmail diretamente se log.attachments estiver vazio
+        const logAtts = (log.attachments || []).length > 0
+            ? log.attachments
+            : gmailAtts.map(a => ({ filename: a.filename, mime_type: a.mimeType, size_bytes: a.size }));
+
+        if (logAtts.length === 0) {
+            console.warn('  ⚠️ Nenhum anexo encontrado no email ou no log');
+        }
+
+        for (const att of logAtts) {
             const entry = {
                 filename:          att.filename,
                 mime_type:         att.mime_type,
@@ -59,7 +68,7 @@ async function uploadAttachmentsForLog(log, patientId) {
                 }
 
                 const buffer = await downloadAttachment(log.gmail_message_id, gmailAtt.attachmentId, gmailAtt.dataInline || null);
-                const { uploadId } = await uploadFile(patientId, buffer, att.filename, att.mime_type || 'application/octet-stream');
+                const { uploadId } = await uploadFile(patientId, buffer, att.filename, att.mime_type || gmailAtt.mimeType || 'application/octet-stream');
                 entry.status = 'uploaded';
                 entry.codental_upload_id = uploadId;
                 console.log(`  ✅ Upload: ${att.filename} → paciente ${patientId}`);
@@ -229,6 +238,12 @@ export default async function handler(req, res) {
         // Marca todos os logs agrupados como confirmados (sem reuploar anexos já enviados)
         if (groupedIds.length) await col.updateMany({ _id: { $in: groupedIds } }, { $set: { ...confirmSet, status: 'duplicate_all' } });
 
+        // Marca email como lido no Gmail se houve upload bem-sucedido
+        const uploadedCount = results.filter(r => r.status === 'uploaded').length;
+        if (uploadedCount > 0 && gmailMsgId) {
+            try { await markAsRead(gmailMsgId); } catch(_) {}
+        }
+
         return res.status(200).json({ ok: true, patient_id: pid, results, affected: 1 + groupedIds.length });
     }
 
@@ -327,6 +342,11 @@ export default async function handler(req, res) {
                 attachments: uploadResults,
             },
         });
+
+        // Marca email como lido no Gmail se upload foi bem-sucedido
+        if (uploaded > 0 && log.gmail_message_id) {
+            try { await markAsRead(log.gmail_message_id); } catch(_) {}
+        }
 
         return res.status(200).json({
             ok: true,
