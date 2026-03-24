@@ -690,6 +690,16 @@ async function reprocessSearch(logId, extractedName){
   } catch(e){ toast('Erro: '+e.message,'err'); }
 }
 
+function reprocessCreateFromBtn(btn){
+  const logData = {
+    contact_phone: btn.dataset.cphone||'',
+    contact_cpf:   btn.dataset.ccpf||'',
+    contact_found: btn.dataset.cfound==='1',
+    contact_name:  btn.dataset.cname||'',
+  };
+  reprocessCreate(btn.dataset.lid, btn.dataset.name, logData);
+}
+
 async function reprocessCreate(logId, extractedName, logData){
   // Busca dados do log para pré-preencher o formulário
   let prePhone = '', preCpf = '', contactFound = false, contactName = '';
@@ -861,8 +871,8 @@ function buildDetail(log){
       +' onclick="reprocessSearch(this.dataset.lid,this.dataset.name)">🔍 Buscar paciente e reenviar</button>'
       +'<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--vio);border-color:rgba(167,139,250,.3)"'
       +' data-lid="'+id+'" data-name="'+name+'"'
-      +' data-logdata="'+esc(JSON.stringify({contact_phone:log.contact_phone||\'\'  ,contact_cpf:log.contact_cpf||\'\',contact_found:!!log.contact_found,contact_name:log.contact_name||\'\'}))+'"'
-      +' onclick="reprocessCreate(this.dataset.lid,this.dataset.name,JSON.parse(this.dataset.logdata))">+ Criar paciente e reenviar</button>'
+      +' data-cphone="'+esc(log.contact_phone||'')+'" data-ccpf="'+esc(log.contact_cpf||'')+'" data-cfound="'+(log.contact_found?'1':'0')+'" data-cname="'+esc(log.contact_name||'')+'"'
+      +' onclick="reprocessCreateFromBtn(this)">+ Criar paciente e reenviar</button>'
       +(sug
         ? '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--amb);border-color:rgba(245,158,11,.3)"'
           +' data-lid="'+id+'" data-pid="'+esc(sug.patient_id||'')+'" data-pname="'+esc(sug.patient_name||'')+'"'
