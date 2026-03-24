@@ -690,15 +690,47 @@ async function reprocessSearch(logId, extractedName){
   } catch(e){ toast('Erro: '+e.message,'err'); }
 }
 
-async function reprocessCreate(logId, extractedName){
-  const name = prompt('Nome completo do paciente:', extractedName||'');
+async function reprocessCreate(logId, extractedName, logData){
+  // Busca dados do log para pré-preencher o formulário
+  let prePhone = '', preCpf = '', contactFound = false, contactName = '';
+  try {
+    if (logData) {
+      prePhone     = logData.contact_phone || '';
+      preCpf       = logData.contact_cpf   || '';
+      contactFound = logData.contact_found  || false;
+      contactName  = logData.contact_name   || '';
+    }
+  } catch(_) {}
+
+  // Monta mensagem do formulário
+  const contactMsg = contactFound
+    ? `\n\n📱 Contato encontrado: ${contactName}`
+    : '\n\n📵 Contato não encontrado no Google';
+
+  const name = prompt('Nome completo do paciente:' + contactMsg, extractedName||'');
   if(!name) return;
-  const phone = prompt('Telefone (vazio = busca nos contatos do Google):','');
+
+  const phone = prompt(
+    'Telefone' + (contactFound ? ' (encontrado nos contatos):' : ' (não encontrado — deixe vazio se quiser):'),
+    prePhone
+  );
+
+  const cpf = prompt(
+    'CPF' + (preCpf ? ' (encontrado nos contatos):' : ' (opcional):'),
+    preCpf
+  );
+
   try{
     const r = await fetch(`${API}/api/review`,{
       method:'POST',
       headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
-      body: JSON.stringify({log_id:logId, action:'create', patient_name:name, patient_phone:phone||''})
+      body: JSON.stringify({
+        log_id: logId,
+        action: 'create',
+        patient_name:  name,
+        patient_phone: phone||'',
+        patient_cpf:   cpf||'',
+      })
     });
     const d = await r.json();
     if(d.ok){
@@ -808,6 +840,13 @@ function buildDetail(log){
 
   const sug=log.pending_suggestion;
   const sugRow=sug?('<div class="key">Sugestão</div><div class="val warn">'+esc(sug.patient_name)+' ('+Math.round(sug.score*100)+'%)</div>'):'';
+  const contactRow = log.needs_creation
+    ? '<div class="key">Contato Google</div><div class="val '+(log.contact_found?'ok':'warn')+'">'
+      + (log.contact_found
+          ? '✅ '+esc(log.contact_name||'')+(log.contact_phone?' · '+esc(log.contact_phone):'')+(log.contact_cpf?' · CPF '+esc(log.contact_cpf):'')
+          : '📵 Não encontrado')
+      + '</div>'
+    : '';
   const id=String(log._id||log.gmail_message_id||'');
   const name=esc(log.patient_name_extracted||'');
   const hasPat=!!log.patient_id_codental;
@@ -822,7 +861,8 @@ function buildDetail(log){
       +' onclick="reprocessSearch(this.dataset.lid,this.dataset.name)">🔍 Buscar paciente e reenviar</button>'
       +'<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--vio);border-color:rgba(167,139,250,.3)"'
       +' data-lid="'+id+'" data-name="'+name+'"'
-      +' onclick="reprocessCreate(this.dataset.lid,this.dataset.name)">+ Criar paciente e reenviar</button>'
+      +' data-logdata="'+esc(JSON.stringify({contact_phone:log.contact_phone||\'\'  ,contact_cpf:log.contact_cpf||\'\',contact_found:!!log.contact_found,contact_name:log.contact_name||\'\'}))+'"'
+      +' onclick="reprocessCreate(this.dataset.lid,this.dataset.name,JSON.parse(this.dataset.logdata))">+ Criar paciente e reenviar</button>'
       +(sug
         ? '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--amb);border-color:rgba(245,158,11,.3)"'
           +' data-lid="'+id+'" data-pid="'+esc(sug.patient_id||'')+'" data-pname="'+esc(sug.patient_name||'')+'"'
@@ -837,6 +877,7 @@ function buildDetail(log){
 
   return '<div class="detail-head">Email</div>'
     +'<div class="detail-meta">'
+    +contactRow
     +'<div class="key">Message ID</div><div class="val">'+esc(log.gmail_message_id||'—')+'</div>'
     +'<div class="key">Remetente</div><div class="val">'+esc(log.from||'—')+'</div>'
     +'<div class="key">Paciente</div><div class="val '+(hasPat?'ok':'err')+'">'+esc(log.patient_id_codental||'não encontrado')+(log.patient_name_codental?' — '+esc(log.patient_name_codental):'')+'</div>'
