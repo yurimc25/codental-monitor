@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     if (cors(req, res)) return;
     // PATCH — atualiza anexos e status de um log específico (usado pelo reverificar anexos)
     if (req.method === 'PATCH') {
-        const { log_id, message_id, attachments, status, update_message_id } = req.body || {};
+        const { log_id, message_id, attachments, status, update_message_id, patient_id_codental, patient_name_codental } = req.body || {};
         if (!log_id && !message_id) return res.status(400).json({ error: 'log_id ou message_id obrigatório' });
         try {
             const { ObjectId } = await import('mongodb');
@@ -14,8 +14,10 @@ export default async function handler(req, res) {
                 ? { _id: new ObjectId(log_id) }
                 : { gmail_message_id: message_id };
             const update = {};
-            if (attachments) update.attachments = attachments;
-            if (status)      update.status = status;
+            if (attachments)           update.attachments = attachments;
+            if (status)                   update.status = status;
+            if (patient_id_codental)      update.patient_id_codental = patient_id_codental;
+            if (patient_name_codental)    update.patient_name_codental = patient_name_codental;
             // Salva ID alternativo sem sobrescrever o original (evita E11000 duplicate key)
             if (update_message_id && message_id) update.alt_message_id = message_id;
             update.updated_at = new Date();

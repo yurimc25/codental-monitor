@@ -584,6 +584,63 @@ async function reprocessLog(logId, patientId, patientName){
   } catch(e){ toast(e.message,'err'); }
 }
 
+async function conferirPaciente(logId, extractedName, currentPatientId){
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ Buscando...';
+  try {
+    const r = await fetch(`${API}/api/debug-search?name=${encodeURIComponent(extractedName)}`, {
+      headers: {'x-api-key': API_KEY}
+    });
+    const d = await r.json();
+    const all = (d.all || []).slice(0, 10);
+    if (!all.length) { toast('Nenhum paciente encontrado para: '+extractedName, 'err'); return; }
+
+    // Mostra os melhores resultados
+    let msg = `Resultados para "${extractedName}":\n\n`;
+    all.forEach((p, i) => {
+      const score = Math.round((p.score||0)*100);
+      const marker = p.id == currentPatientId ? ' ← atual' : '';
+      msg += `${i+1}. ${p.name||p.fullName} (ID ${p.id}) — ${score}%${marker}\n`;
+    });
+    msg += '\nDigite o número da opção para atualizar (ou cancela):';
+
+    const choice = prompt(msg, '1');
+    if (!choice) return;
+    const idx = parseInt(choice) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= all.length) { toast('Opção inválida', 'err'); return; }
+
+    const selected = all[idx];
+    if (String(selected.id) === String(currentPatientId)) { toast('Mesmo paciente — nenhuma alteração', 'ok'); return; }
+
+    if (!confirm(`Confirma atualizar para:\n${selected.name||selected.fullName} (ID ${selected.id})?`)) return;
+
+    // Atualiza o log com o novo paciente
+    const upd = await fetch(`${API}/api/logs`, {
+      method: 'PATCH',
+      headers: {'x-api-key': API_KEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        log_id: logId,
+        patient_id_codental: String(selected.id),
+        patient_name_codental: selected.name || selected.fullName,
+        status: 'retry',
+      })
+    });
+    const ud = await upd.json();
+    if (ud.ok) {
+      toast(`✅ Paciente atualizado para ${selected.name||selected.fullName}`, 'ok');
+      loadLogs();
+    } else {
+      toast('Erro ao atualizar: '+(ud.error||'falhou'), 'err');
+    }
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '👤 Conferir paciente';
+  }
+}
+
 async function retryErrors(){
   const btn = document.getElementById('retry-errors-btn');
   if(!btn) return;
@@ -862,6 +919,12 @@ function buildDetail(log){
   const hasPat=!!log.patient_id_codental;
 
   // Botões de ação — usa data attributes para evitar problemas com aspas
+  const btnConferir = hasPat
+    ? '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--blu);border-color:rgba(96,165,250,.3)"'
+      +' data-lid="'+id+'" data-name="'+esc(log.patient_name_extracted||'')+'" data-pid="'+esc(log.patient_id_codental||'')+'"'
+      +' onclick="conferirPaciente(this.dataset.lid,this.dataset.name,this.dataset.pid)" title="Busca paciente mais similar">👤 Conferir paciente</button>'
+    : '';
+
   const btnReenvio = hasPat
     ? '<button class="btn" style="padding:4px 10px;font-size:10px;color:var(--grn);border-color:rgba(34,197,94,.3)"'
       +' data-lid="'+id+'" data-pid="'+esc(log.patient_id_codental||'')+'" data-pname="'+esc(log.patient_name_codental||'')+'"'
@@ -883,7 +946,7 @@ function buildDetail(log){
     +' data-lid="'+id+'" data-mid="'+esc(log.gmail_message_id||'')+'" data-subj="'+esc(log.subject||'')+'"'
     +' onclick="reverifyAttachments(this.dataset.lid,this.dataset.mid,this.dataset.subj)" title="Rebusca os anexos diretamente no Gmail pelo assunto do email">🔎 Reverificar anexos</button>';
 
-  const actionBtns = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+btnReenvio+btnReverify+'</div>';
+  const actionBtns = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+btnReenvio+btnConferir+btnReverify+'</div>';
 
   return '<div class="detail-head">Email</div>'
     +'<div class="detail-meta">'
