@@ -2,7 +2,7 @@ name: Refresh Codental Session
 
 on:
   schedule:
-    - cron: '*/59 * * * *'  # a cada 30 minutos
+    - cron: '*/59 * * * *'  # a cada ~59 minutos
   workflow_dispatch:          # permite rodar manualmente
 
 jobs:
@@ -29,15 +29,12 @@ jobs:
           CODENTAL_PASSWORD: ${{ secrets.CODENTAL_PASSWORD }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
         run: node .github/scripts/refresh-session.js
-<<<<<<< HEAD
 
-      - name: Sync Google Contacts → MongoDB
+      - name: Auto-resolver pendências com prontuário 100% batido
         env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
-        run: node scripts/sync-contacts.js
-=======
->>>>>>> 5eb4a634bbb23cde5b634c6011b45ca8ba6f553f
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          curl -sf -X POST "https://gmailcodental-monitor.vercel.app/api/review" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${API_KEY:-Deuse10}" \
+            -d '{"action":"auto_resolve"}'

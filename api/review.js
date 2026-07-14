@@ -177,6 +177,83 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).end();
 
     const { log_id, action, patient_id, patient_name, patient_phone, patient_cpf } = req.body || {};
+
+    // ── AUTO_RESOLVE ─────────────────────────────────────────────────────────
+    // Varre a fila de pendências e resolve sozinho os casos cujo nome bate
+    // 100% (score === 1) com um paciente já existente no Codental: envia os
+    // anexos e marca como concluído, sem precisar de revisão manual.
+    // Pensado para ser chamado por um cron (ex: junto do refresh de sessão).
+    if (action === 'auto_resolve') {
+        const { scorePair } = await import('../lib/extractor.js');
+        const patientsCache = (await (await import('../lib/db.js')).db()).collection('patients_cache');
+        const normStr = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+        const allPending = await col.find({ status: 'pending_review' }).toArray();
+
+        // Agrupa por nome normalizado, igual ao GET
+        const grouped = new Map();
+        for (const item of allPending) {
+            const rawName = item.patient_name_extracted || '';
+            const normName = normStr(rawName);
+            if (!normName) continue;
+            if (!grouped.has(normName)) grouped.set(normName, { rawName, logs: [item] });
+            else grouped.get(normName).logs.push(item);
+        }
+
+        const resolved = [];
+        for (const [normName, group] of grouped) {
+            const firstToken = normName.split(' ')[0];
+            if (!firstToken || firstToken.length < 2) continue;
+
+            const candidates = await patientsCache.find({
+                name_norm: { $regex: firstToken, $options: 'i' }
+            }).limit(50).toArray();
+
+            let bestMatch = null, bestScore = 0;
+            for (const c of candidates) {
+                const s = scorePair(group.rawName, c.name || '');
+                if (s > bestScore) { bestScore = s; bestMatch = c; }
+            }
+
+            // Só resolve automaticamente se o prontuário bate 100%
+            if (bestScore < 1 || !bestMatch?.id) continue;
+
+            const pid = String(bestMatch.id);
+            const confirmedName = bestMatch.name || null;
+            let groupUploaded = 0;
+
+            for (const gLog of group.logs) {
+                let uploadResults = [];
+                try {
+                    uploadResults = await uploadAttachmentsForLog(gLog, pid);
+                } catch (err) {
+                    console.error(`auto_resolve: erro em ${gLog._id}:`, err.message);
+                }
+                const uploaded = uploadResults.filter(r => r.status === 'uploaded').length;
+                groupUploaded += uploaded;
+                await col.updateOne({ _id: gLog._id }, {
+                    $set: {
+                        status: uploaded > 0 ? 'uploaded' : (gLog.attachments?.length ? 'failed' : 'duplicate_all'),
+                        patient_id_codental: pid,
+                        patient_name_codental: confirmedName,
+                        pending_suggestion: null,
+                        reviewed_at: new Date(),
+                        review_action: 'auto_confirmed',
+                        attachments: uploadResults.length ? uploadResults : gLog.attachments,
+                    },
+                });
+                if (uploaded > 0 && gLog.gmail_message_id) {
+                    try { await markAsRead(gLog.gmail_message_id); } catch(_) {}
+                }
+            }
+
+            resolved.push({ patient_name: group.rawName, patient_id: pid, emails: group.logs.length, uploaded: groupUploaded });
+            console.log(`🤖 auto_resolve: ${group.rawName} → paciente ${pid} (${groupUploaded} arquivo(s) em ${group.logs.length} email(s))`);
+        }
+
+        return res.status(200).json({ ok: true, resolved_count: resolved.length, resolved });
+    }
+
     if (!log_id || !action) return res.status(400).json({ error: 'log_id e action são obrigatórios' });
 
     const log = await col.findOne({ _id: new ObjectId(log_id) });
