@@ -269,8 +269,6 @@ export default async function handler(req, res) {
             attachments: updatedAtts,
         };
         await col.updateOne({ _id: log._id }, { $set: confirmSet });
-        // Marca todos os logs agrupados como confirmados (sem reuploar anexos já enviados)
-        if (groupedIds.length) await col.updateMany({ _id: { $in: groupedIds } }, { $set: { ...confirmSet, status: 'duplicate_all' } });
 
         // Marca email como lido no Gmail se houve upload bem-sucedido
         const uploadedCount = results.filter(r => r.status === 'uploaded').length;
@@ -278,7 +276,38 @@ export default async function handler(req, res) {
             try { await markAsRead(gmailMsgId); } catch(_) {}
         }
 
-        return res.status(200).json({ ok: true, patient_id: pid, results, affected: 1 + groupedIds.length });
+        // Reprocessa de fato os anexos dos demais emails agrupados do mesmo remetente
+        // (cada email pode ter arquivos próprios — não são necessariamente duplicatas)
+        let groupedUploaded = 0;
+        if (groupedIds.length) {
+            const groupedLogs = await col.find({ _id: { $in: groupedIds } }).toArray();
+            for (const gLog of groupedLogs) {
+                let gUploadResults = [];
+                try {
+                    gUploadResults = await uploadAttachmentsForLog(gLog, pid);
+                } catch (err) {
+                    console.error(`Erro reprocessando anexos agrupados de ${gLog._id}:`, err.message);
+                }
+                const gUploaded = gUploadResults.filter(r => r.status === 'uploaded').length;
+                groupedUploaded += gUploaded;
+                await col.updateOne({ _id: gLog._id }, {
+                    $set: {
+                        status: gUploaded > 0 ? 'uploaded' : (gLog.attachments?.length ? 'failed' : 'duplicate_all'),
+                        patient_id_codental: String(pid),
+                        patient_name_codental: confirmedName,
+                        pending_suggestion: null,
+                        reviewed_at: new Date(),
+                        review_action: 'confirmed',
+                        attachments: gUploadResults.length ? gUploadResults : gLog.attachments,
+                    },
+                });
+                if (gUploaded > 0 && gLog.gmail_message_id) {
+                    try { await markAsRead(gLog.gmail_message_id); } catch(_) {}
+                }
+            }
+        }
+
+        return res.status(200).json({ ok: true, patient_id: pid, results, affected: 1 + groupedIds.length, grouped_uploaded: groupedUploaded });
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
