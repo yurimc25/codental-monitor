@@ -1227,25 +1227,33 @@ async function rvSearch(id,extractedName,groupedIds=[]){
 async function rvCreate(id,extractedName,groupedIds=[]){
   const name=prompt('Nome completo do paciente:',extractedName||'');
   if(!name) return;
-  // Deixar vazio = busca automática nos contatos do Google
-  const phone=prompt('Telefone (deixe vazio para buscar nos contatos do Google):', '');
+
+  // Busca telefone nos contatos do Google ANTES de pedir confirmação
+  let suggestedPhone='';
+  try{
+    const cr=await fetch(`${API}/api/review?find_contact=${encodeURIComponent(name)}`,{headers:{'x-api-key':API_KEY}});
+    const cd=await cr.json();
+    if(cd.ok && cd.contact?.phone) suggestedPhone=cd.contact.phone;
+  } catch(_){}
+
+  // Deixar vazio = salva sem telefone (não busca de novo no backend)
+  const phone=prompt(
+    suggestedPhone
+      ? `Telefone (encontrado nos contatos do Google, edite se necessário):`
+      : `Telefone (nenhum contato encontrado — deixe vazio para salvar sem telefone):`,
+    suggestedPhone
+  );
   rvDisable(id);
-  // Feedback visual durante busca
-  if(!phone){
-    const el=document.getElementById(`rv-${id}`);
-    const meta=el?.querySelector('.rv-meta');
-    if(meta) meta.textContent='📞 Buscando telefone nos contatos do Google...';
-  }
   try{
     const r=await fetch(`${API}/api/review`,{method:'POST',
       headers:{'x-api-key':API_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({log_id:id,action:'create',patient_name:name,patient_phone:phone||''})});
+      body:JSON.stringify({log_id:id,action:'create',patient_name:name,patient_phone:phone||'',grouped_ids:groupedIds})});
     const d=await r.json();
     if(d.ok){
       const up=(d.uploads||[]).filter(u=>u.status==='uploaded').length;
       const phoneMsg=d.patient_phone?` · 📞 ${d.patient_phone}`:'';
       const cpfMsg=d.patient_cpf?` · 📋 ${d.patient_cpf}`:'';
-      toast(`✅ ${name} criado${phoneMsg}${cpfMsg} · ${up} arquivo(s)`,'ok');
+      toast(`✅ ${name} criado${phoneMsg}${cpfMsg} · ${d.affected||1} email(s)`,'ok');
       // Remove todos os cards agrupados do mesmo paciente
       document.getElementById(`rv-${id}`)?.remove();
       (groupedIds||[]).forEach(gid=>{ if(gid!==id) document.getElementById(`rv-${gid}`)?.remove(); });

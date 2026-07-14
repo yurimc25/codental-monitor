@@ -29,3 +29,12 @@ jobs:
           CODENTAL_PASSWORD: ${{ secrets.CODENTAL_PASSWORD }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
         run: node .github/scripts/refresh-session.js
+
+      - name: Sync Google Contacts → MongoDB
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+        run: node scripts/sync-contacts.js

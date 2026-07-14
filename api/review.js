@@ -96,6 +96,18 @@ export default async function handler(req, res) {
 
     const col = (await db()).collection('email_logs');
 
+    // ── GET: busca contato do Google (telefone/CPF) por nome ───────────────────
+    if (req.method === 'GET' && req.query?.find_contact) {
+        const name = String(req.query.find_contact || '').trim();
+        if (!name) return res.status(400).json({ error: 'find_contact obrigatório' });
+        try {
+            const contact = await findPhoneInContacts(name);
+            return res.status(200).json({ ok: true, contact: contact || null });
+        } catch (err) {
+            return res.status(200).json({ ok: true, contact: null, error: err.message });
+        }
+    }
+
     // ── GET: lista pendências ──────────────────────────────────────────────────
     if (req.method === 'GET') {
         const allPending = await col.find({ status: 'pending_review' })
@@ -370,6 +382,41 @@ export default async function handler(req, res) {
             try { await markAsRead(log.gmail_message_id); } catch(_) {}
         }
 
+        // Reprocessa também os demais emails do mesmo remetente para o paciente recém-criado
+        let groupedUploaded = 0;
+        if (groupedIds.length) {
+            const groupedLogs = await col.find({ _id: { $in: groupedIds } }).toArray();
+            for (const gLog of groupedLogs) {
+                await col.updateOne({ _id: gLog._id }, {
+                    $set: {
+                        patient_id_codental: newId,
+                        patient_name_codental: patient_name,
+                        pending_suggestion: null,
+                        reviewed_at: new Date(),
+                        review_action: 'created',
+                        status: 'pending_upload',
+                    },
+                });
+                let gUploadResults = [];
+                try {
+                    gUploadResults = await uploadAttachmentsForLog(gLog, newId);
+                } catch (err) {
+                    console.error(`Erro reprocessando anexos agrupados de ${gLog._id}:`, err.message);
+                }
+                const gUploaded = gUploadResults.filter(r => r.status === 'uploaded').length;
+                groupedUploaded += gUploaded;
+                await col.updateOne({ _id: gLog._id }, {
+                    $set: {
+                        status: gUploaded > 0 ? 'uploaded' : 'failed',
+                        attachments: gUploadResults,
+                    },
+                });
+                if (gUploaded > 0 && gLog.gmail_message_id) {
+                    try { await markAsRead(gLog.gmail_message_id); } catch(_) {}
+                }
+            }
+        }
+
         return res.status(200).json({
             ok: true,
             patient_id: newId,
@@ -377,7 +424,8 @@ export default async function handler(req, res) {
             patient_phone: resolvedPhone || null,
             patient_cpf: resolvedCPF || null,
             uploads: uploadResults,
-            message: `Paciente criado${resolvedPhone ? ' com telefone' : ''}${resolvedCPF ? ' com CPF' : ''} · ${uploaded} arquivo(s) enviado(s).`
+            affected: 1 + groupedIds.length,
+            message: `Paciente criado${resolvedPhone ? ' com telefone' : ''}${resolvedCPF ? ' com CPF' : ''} · ${uploaded + groupedUploaded} arquivo(s) enviado(s) em ${1 + groupedIds.length} email(s).`
         });
     }
 
