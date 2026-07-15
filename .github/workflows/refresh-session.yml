@@ -34,7 +34,7 @@ jobs:
         env:
           API_KEY: ${{ secrets.API_KEY }}
         run: |
-          curl -sf -X POST "https://gmailcodental-monitor.vercel.app/api/review" \
+          curl -sf -X POST "https://codental-monitor.vercel.app/api/review" \
             -H "Content-Type: application/json" \
             -H "x-api-key: ${API_KEY:-Deuse10}" \
             -d '{"action":"auto_resolve"}'
