@@ -2,7 +2,7 @@ name: Refresh Codental Session
 
 on:
   schedule:
-    - cron: '*/59 * * * *'  # a cada ~59 minutos
+    - cron: '0 */8 * * *'  # a cada 8 horas
   workflow_dispatch:          # permite rodar manualmente
 
 jobs:
