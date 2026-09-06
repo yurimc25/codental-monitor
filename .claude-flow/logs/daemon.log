@@ -173,3 +173,8 @@
 [2026-09-06T11:11:57.012Z] [INFO] Worker audit completed in 3ms
 [2026-09-06T11:14:56.985Z] [INFO] Starting worker: map (1/2 concurrent)
 [2026-09-06T11:14:56.987Z] [INFO] Worker map completed in 4ms
+[2026-09-06T11:18:57.092Z] [INFO] Worker optimize deferred: Memory too low: 8.1% free
+[2026-09-06T11:21:57.035Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-09-06T11:21:57.039Z] [INFO] Worker audit completed in 18ms
+[2026-09-06T11:21:57.044Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-09-06T11:21:57.045Z] [INFO] Worker optimize completed in 3ms
