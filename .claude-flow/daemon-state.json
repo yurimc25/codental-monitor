@@ -1,75 +1,75 @@
 {
   "running": true,
-  "startedAt": "2026-09-06T10:42:43.883Z",
+  "startedAt": "2026-09-06T10:59:56.971Z",
   "workers": {
     "map": {
-      "runCount": 6,
-      "successCount": 6,
-      "failureCount": 0,
-      "averageDurationMs": 8.833333333333334,
-      "lastRun": "2026-09-04T02:25:56.174Z",
-      "lastStartedAt": "2026-09-04T02:25:56.166Z",
-      "nextRun": "2026-09-06T10:42:43.883Z",
-      "isRunning": false
-    },
-    "audit": {
       "runCount": 8,
       "successCount": 8,
       "failureCount": 0,
-      "averageDurationMs": 6.125,
-      "lastRun": "2026-09-04T02:22:56.177Z",
-      "lastStartedAt": "2026-09-04T02:22:56.168Z",
-      "nextRun": "2026-09-06T10:44:43.884Z",
+      "averageDurationMs": 7.375,
+      "lastRun": "2026-09-06T11:14:56.987Z",
+      "lastStartedAt": "2026-09-06T11:14:56.983Z",
+      "nextRun": "2026-09-06T11:14:56.980Z",
+      "isRunning": false
+    },
+    "audit": {
+      "runCount": 10,
+      "successCount": 10,
+      "failureCount": 0,
+      "averageDurationMs": 5.6,
+      "lastRun": "2026-09-06T11:11:57.012Z",
+      "lastStartedAt": "2026-09-06T11:11:57.009Z",
+      "nextRun": "2026-09-06T11:21:57.013Z",
       "isRunning": false
     },
     "optimize": {
-      "runCount": 6,
-      "successCount": 6,
+      "runCount": 7,
+      "successCount": 7,
       "failureCount": 0,
-      "averageDurationMs": 6.333333333333333,
-      "lastRun": "2026-09-04T02:29:56.132Z",
-      "lastStartedAt": "2026-09-04T02:29:56.125Z",
-      "nextRun": "2026-09-06T10:46:43.884Z",
+      "averageDurationMs": 15.285714285714286,
+      "lastRun": "2026-09-06T11:03:57.065Z",
+      "lastStartedAt": "2026-09-06T11:03:56.997Z",
+      "nextRun": "2026-09-06T11:18:57.068Z",
       "isRunning": false
     },
     "consolidate": {
-      "runCount": 3,
-      "successCount": 3,
-      "failureCount": 0,
-      "averageDurationMs": 32,
-      "lastRun": "2026-09-04T02:16:56.142Z",
-      "lastStartedAt": "2026-09-04T02:16:56.097Z",
-      "nextRun": "2026-09-06T10:48:43.884Z",
-      "isRunning": false
-    },
-    "testgaps": {
       "runCount": 4,
       "successCount": 4,
       "failureCount": 0,
-      "averageDurationMs": 3.25,
-      "lastRun": "2026-09-04T02:22:56.182Z",
-      "lastStartedAt": "2026-09-04T02:22:56.179Z",
-      "nextRun": "2026-09-06T10:50:43.884Z",
+      "averageDurationMs": 133.5,
+      "lastRun": "2026-09-06T11:05:57.426Z",
+      "lastStartedAt": "2026-09-06T11:05:56.988Z",
+      "nextRun": "2026-09-06T11:35:57.427Z",
+      "isRunning": false
+    },
+    "testgaps": {
+      "runCount": 5,
+      "successCount": 5,
+      "failureCount": 0,
+      "averageDurationMs": 3.2,
+      "lastRun": "2026-09-06T11:07:56.992Z",
+      "lastStartedAt": "2026-09-06T11:07:56.989Z",
+      "nextRun": "2026-09-06T11:27:56.994Z",
       "isRunning": false
     },
     "backup": {
-      "runCount": 1,
-      "successCount": 1,
+      "runCount": 2,
+      "successCount": 2,
       "failureCount": 0,
-      "averageDurationMs": 548,
-      "lastRun": "2026-09-04T01:20:56.605Z",
-      "lastStartedAt": "2026-09-04T01:20:56.057Z",
-      "nextRun": "2026-09-06T10:52:43.884Z",
+      "averageDurationMs": 283,
+      "lastRun": "2026-09-06T11:09:57.005Z",
+      "lastStartedAt": "2026-09-06T11:09:56.987Z",
+      "nextRun": "2026-09-07T11:09:57.007Z",
       "isRunning": false
     },
     "harness": {
-      "runCount": 1,
-      "successCount": 1,
+      "runCount": 2,
+      "successCount": 2,
       "failureCount": 0,
-      "averageDurationMs": 8,
-      "lastRun": "2026-09-04T01:22:56.047Z",
-      "lastStartedAt": "2026-09-04T01:22:56.039Z",
-      "nextRun": "2026-09-06T10:54:43.885Z",
+      "averageDurationMs": 16.5,
+      "lastRun": "2026-09-06T11:11:57.007Z",
+      "lastStartedAt": "2026-09-06T11:11:56.982Z",
+      "nextRun": "2026-09-06T17:11:57.009Z",
       "isRunning": false
     },
     "predict": {
@@ -89,8 +89,8 @@
   },
   "config": {
     "autoStart": false,
-    "logDir": "C:\\Users\\yurim\\Desktop\\Programação\\Ferramentas de Automação\\Raios-x do Gmail\\.claude-flow\\logs",
-    "stateFile": "C:\\Users\\yurim\\Desktop\\Programação\\Ferramentas de Automação\\Raios-x do Gmail\\.claude-flow\\daemon-state.json",
+    "logDir": "c:\\Users\\yurim\\Desktop\\Programação\\Ferramentas de Automação\\Raios-x do Gmail\\.claude-flow\\logs",
+    "stateFile": "c:\\Users\\yurim\\Desktop\\Programação\\Ferramentas de Automação\\Raios-x do Gmail\\.claude-flow\\daemon-state.json",
     "maxConcurrent": 2,
     "workerTimeoutMs": 960000,
     "resourceThresholds": {
@@ -175,5 +175,5 @@
       }
     ]
   },
-  "savedAt": "2026-09-06T10:42:43.885Z"
+  "savedAt": "2026-09-06T11:14:56.988Z"
 }
