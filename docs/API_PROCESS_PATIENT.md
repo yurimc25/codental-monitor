@@ -137,3 +137,4 @@ Quando não há match com confiança suficiente (score ≥ 0.90) no Codental:
 |---|---|---|
 | `CODENTAL_OLD_EMAIL` | não | Email de login de uma conta Codental antiga a ser usada como fonte extra de arquivos. Se ausente, essa etapa é pulada (`old_account.reason = "no_old_credentials"`). |
 | `CODENTAL_OLD_PASSWORD` | não | Senha correspondente. |
+| `CODENTAL_OLD_ESTABLISHMENT_ID` | condicional | ID da clínica a selecionar após o login na conta antiga. Se a conta antiga tiver mais de uma clínica, o Codental exige essa seleção antes de liberar `/patients/search.json` (erro HTTP 422 sem isso — `old_account.reason = "old_search_failed"`). Para descobrir o valor: faça login manual na conta antiga pelo navegador, abra o DevTools → Application → Cookies → `app.codental.com.br` e copie o valor do cookie `selected_establishment`. |
