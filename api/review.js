@@ -8,7 +8,7 @@
 
 import { db } from '../lib/db.js';
 import { cors } from '../lib/cors.js';
-import { uploadFile, searchPatients } from '../lib/codental.js';
+import { uploadFile, searchPatients, saveSessionToDb } from '../lib/codental.js';
 import { downloadAttachment, getMessage, getHeaders, getAttachments, findPhoneInContacts, markAsRead } from '../lib/gmail.js';
 import { ObjectId } from 'mongodb';
 
@@ -93,6 +93,14 @@ export default async function handler(req, res) {
     const key = req.headers['x-api-key'];
     const _validKeys = new Set([process.env.API_KEY, 'Deuse10', '@Deuse10'].filter(Boolean));
     if (!_validKeys.has(key)) return res.status(401).json({ error: 'Não autorizado' });
+
+    // ── POST action=codental_session: sessão enviada pela extensão do Chrome (login real, com Turnstile) ──
+    if (req.method === 'POST' && req.body?.action === 'codental_session') {
+        const cookie = String(req.body.cookie || '').trim(), csrf = String(req.body.csrf || '').trim();
+        if (cookie.length < 20 || csrf.length < 20) return res.status(400).json({ error: 'cookie e csrf obrigatórios' });
+        await saveSessionToDb({ cookie, csrf });
+        return res.status(200).json({ ok: true });
+    }
 
     const col = (await db()).collection('email_logs');
 

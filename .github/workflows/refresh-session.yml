@@ -23,12 +23,17 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Install xvfb
+        run: sudo apt-get install -y xvfb
+
+      # O Turnstile do login do Codental exige navegador com janela: roda sob display virtual.
+      # Se falhar, a extensão do Chrome (Doctoralia turbo) também envia a sessão ao mesmo registro.
       - name: Refresh Codental session
         env:
           CODENTAL_EMAIL: ${{ secrets.CODENTAL_EMAIL }}
           CODENTAL_PASSWORD: ${{ secrets.CODENTAL_PASSWORD }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-        run: node .github/scripts/refresh-session.js
+        run: xvfb-run -a --server-args="-screen 0 1366x768x24" node .github/scripts/refresh-session.js
 
       - name: Auto-resolver pendências com prontuário 100% batido
         env:
