@@ -5,6 +5,7 @@
 
 import { chromium } from 'playwright';
 import { MongoClient } from 'mongodb';
+import os from 'os';
 
 const MONGO = process.env.MONGODB_URI;
 const ACCOUNTS = [
@@ -28,6 +29,21 @@ const essential = ['_domain_session', 'remember_professional_token', 'logged_in'
 // Turnstile (Codental, out/2026) só libera o token para navegador com janela e sem a marca de automação:
 // headless=false (no Actions roda sob xvfb-run), AutomationControlled desligado e o User-Agent real do
 // Chromium (um UA de Windows rodando em Linux é sinal de bot, por isso não é mais forçado).
+
+const hasToken = page => page.evaluate(() => !!document.querySelector('input[name="cf-turnstile-response"]')?.value);
+
+/** Espera o Turnstile liberar o token. Quando a Cloudflare reprova o navegador ela mostra o erro 600010 (sem checkbox),
+ *  então não há clique que resolva: guarda uma captura para o artefato do workflow e falha. */
+async function solveTurnstile(page, label) {
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline) {
+        if (await hasToken(page)) return;
+        await page.waitForTimeout(500);
+    }
+    await page.screenshot({ path: `turnstile-falhou-${label}.png`, fullPage: true }).catch(() => {});
+    throw new Error('Turnstile não liberou o login (a Cloudflare reprovou o navegador, erro 600010). Renove a sessão por um navegador real.');
+}
+
 async function loginAccount(browser, acc) {
     const context = await browser.newContext({ locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', viewport: { width: 1366, height: 768 } });
     try {
@@ -38,13 +54,7 @@ async function loginAccount(browser, acc) {
         await page.fill('input[name="professional[password]"]', acc.password);
 
         if (await page.locator('[data-turnstile-form], input[name="cf-turnstile-response"]').count()) {
-            try {
-                await page.waitForFunction(
-                    () => document.querySelector('input[name="cf-turnstile-response"]')?.value,
-                    null, { timeout: 60000 });
-            } catch {
-                throw new Error('Turnstile não liberou o login (desafio bloqueou o navegador). Renove a sessão por um navegador real.');
-            }
+            await solveTurnstile(page, acc.label);
         }
 
         await Promise.all([
@@ -94,8 +104,13 @@ try {
         if (!acc.email || !acc.password) { console.log(`⏭️  [${acc.label}] sem credenciais, pulando`); continue; }
         try {
             const s = await loginAccount(browser, acc);
-            await col.updateOne({ _id: acc.id }, { $set: { cookie: s.cookie, csrf: s.csrf, saved_at: new Date() } }, { upsert: true });
-            console.log(`💾 [${acc.label}] sessão salva no MongoDB`);
+            if (!/_domain_session=/.test(s.cookie)) throw new Error('cookie sem _domain_session (login não concluiu)');
+            const now = new Date(), account = acc.id === 'codental_old_session' ? 'old' : 'main';
+            const src = process.env.GITHUB_ACTIONS ? 'actions' : `local-${os.hostname()}`.replace(/[^\w.-]/g, '');
+            const pool = client.db('codental_monitor').collection('codental_sessions');
+            await pool.updateOne({ _id: `${account}:${src}` }, { $set: { account, src, cookie: s.cookie, csrf: s.csrf, saved_at: now, last_ok_at: now } }, { upsert: true });
+            await col.updateOne({ _id: acc.id }, { $set: { cookie: s.cookie, csrf: s.csrf, saved_at: now } }, { upsert: true }); // CRM WhatsApp lê este
+            console.log(`💾 [${acc.label}] sessão salva no pool (${src})`);
         } catch (err) {
             console.error(`❌ [${acc.label}] ${err.message}`);
             if (acc.required) failed = true;

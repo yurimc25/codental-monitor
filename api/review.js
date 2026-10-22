@@ -8,7 +8,7 @@
 
 import { db } from '../lib/db.js';
 import { cors } from '../lib/cors.js';
-import { uploadFile, searchPatients, saveSessionToDb } from '../lib/codental.js';
+import { uploadFile, searchPatients, saveSessionToPool, accountForEstablishment } from '../lib/codental.js';
 import { downloadAttachment, getMessage, getHeaders, getAttachments, findPhoneInContacts, markAsRead } from '../lib/gmail.js';
 import { ObjectId } from 'mongodb';
 
@@ -20,11 +20,10 @@ import crypto from 'crypto';
 
 // ─── SESSION (lê do banco — renovada pelo GitHub Actions) ─────────────────────
 async function sess() {
-    const { db } = await import('../lib/db.js');
-    const col = (await db()).collection('settings');
-    const doc = await col.findOne({ _id: 'codental_session' });
-    if (!doc?.cookie || !doc?.csrf) throw new Error('Sem sessão no banco — rode o refresh-session.js');
-    return { cookie: doc.cookie, csrf: doc.csrf };
+    const { loadMainSession } = await import('../lib/codental.js');
+    const s = await loadMainSession();
+    if (!s) throw new Error('Nenhuma sessão válida do Codental no banco — abra o Codental no Chrome com a extensão ou rode refresh-session-local.ps1');
+    return s;
 }
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────────
@@ -97,9 +96,10 @@ export default async function handler(req, res) {
     // ── POST action=codental_session: sessão enviada pela extensão do Chrome (login real, com Turnstile) ──
     if (req.method === 'POST' && req.body?.action === 'codental_session') {
         const cookie = String(req.body.cookie || '').trim(), csrf = String(req.body.csrf || '').trim();
-        if (cookie.length < 20 || csrf.length < 20) return res.status(400).json({ error: 'cookie e csrf obrigatórios' });
-        await saveSessionToDb({ cookie, csrf });
-        return res.status(200).json({ ok: true });
+        const device = String(req.body.device || 'chrome').replace(/[^\w.-]/g, '').slice(0, 24) || 'chrome';
+        const account = accountForEstablishment(req.body.establishment);
+        const r = await saveSessionToPool(account, `ext-${device}`, { cookie, csrf });
+        return res.status(r.ok ? 200 : 422).json({ ...r, account });
     }
 
     const col = (await db()).collection('email_logs');

@@ -26,9 +26,10 @@ jobs:
       - name: Install xvfb
         run: sudo apt-get install -y xvfb
 
-      # O Turnstile do login do Codental exige navegador com janela: roda sob display virtual.
-      # Se falhar, a extensão do Chrome (Doctoralia turbo) também envia a sessão ao mesmo registro.
+      # Tentativa: o IP de datacenter do GitHub costuma ser barrado pelo Turnstile (21/10/2026).
+      # Não derruba o job; a sessão vem da extensão do Chrome (ou de uma tarefa agendada no PC).
       - name: Refresh Codental session
+        continue-on-error: true
         env:
           CODENTAL_EMAIL: ${{ secrets.CODENTAL_EMAIL }}
           CODENTAL_PASSWORD: ${{ secrets.CODENTAL_PASSWORD }}
@@ -37,6 +38,15 @@ jobs:
           CODENTAL_OLD_PASSWORD: ${{ secrets.CODENTAL_OLD_PASSWORD }}
           CODENTAL_OLD_ESTABLISHMENT_ID: ${{ secrets.CODENTAL_OLD_ESTABLISHMENT_ID }}
         run: xvfb-run -a --server-args="-screen 0 1366x768x24" node .github/scripts/refresh-session.js
+
+      # Mostra o que a Cloudflare exibiu ao runner quando o login é bloqueado
+      - name: Captura do Turnstile (se falhou)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: turnstile-falhou
+          path: turnstile-falhou-*.png
+          if-no-files-found: ignore
 
       - name: Auto-resolver pendências com prontuário 100% batido
         env:
