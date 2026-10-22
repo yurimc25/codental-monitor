@@ -1,106 +1,111 @@
 // .github/scripts/refresh-session.js
 // Roda no GitHub Actions — faz login real no Codental com Playwright
-// e salva a sessão (cookie + CSRF) no MongoDB para o Vercel usar
+// e salva a sessão (cookie + CSRF) no MongoDB para o Vercel usar.
+// Duas contas: a principal (obrigatória) e a antiga (CODENTAL_OLD_*, opcional — falha dela não derruba o job).
 
 import { chromium } from 'playwright';
 import { MongoClient } from 'mongodb';
 
-const EMAIL    = process.env.CODENTAL_EMAIL;
-const PASSWORD = process.env.CODENTAL_PASSWORD;
-const MONGO    = process.env.MONGODB_URI;
+const MONGO = process.env.MONGODB_URI;
+const ACCOUNTS = [
+    { id: 'codental_session', label: 'principal', required: true,
+      email: process.env.CODENTAL_EMAIL, password: process.env.CODENTAL_PASSWORD, establishment: null },
+    { id: 'codental_old_session', label: 'antiga', required: false,
+      email: process.env.CODENTAL_OLD_EMAIL, password: process.env.CODENTAL_OLD_PASSWORD,
+      establishment: process.env.CODENTAL_OLD_ESTABLISHMENT_ID || null },
+];
 
-if (!EMAIL || !PASSWORD || !MONGO) {
+if (!ACCOUNTS[0].email || !ACCOUNTS[0].password || !MONGO) {
     console.error('❌ Variáveis de ambiente faltando: CODENTAL_EMAIL, CODENTAL_PASSWORD, MONGODB_URI');
     process.exit(1);
 }
 
-let browser;
 // Garante que conecta no banco correto mesmo se a URI não especificar
 const mongoUri = MONGO.includes('/codental_monitor') ? MONGO : MONGO.replace('/?', '/codental_monitor?');
 const client = new MongoClient(mongoUri);
+const essential = ['_domain_session', 'remember_professional_token', 'logged_in', 'selected_establishment'];
 
+// Turnstile (Codental, out/2026) só libera o token para navegador com janela e sem a marca de automação:
+// headless=false (no Actions roda sob xvfb-run), AutomationControlled desligado e o User-Agent real do
+// Chromium (um UA de Windows rodando em Linux é sinal de bot, por isso não é mais forçado).
+async function loginAccount(browser, acc) {
+    const context = await browser.newContext({ locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', viewport: { width: 1366, height: 768 } });
+    try {
+        const page = await context.newPage();
+        console.log(`🔐 [${acc.label}] Abrindo login...`);
+        await page.goto('https://app.codental.com.br/login', { waitUntil: 'domcontentloaded' });
+        await page.fill('input[name="professional[email]"]', acc.email);
+        await page.fill('input[name="professional[password]"]', acc.password);
+
+        if (await page.locator('[data-turnstile-form], input[name="cf-turnstile-response"]').count()) {
+            try {
+                await page.waitForFunction(
+                    () => document.querySelector('input[name="cf-turnstile-response"]')?.value,
+                    null, { timeout: 60000 });
+            } catch {
+                throw new Error('Turnstile não liberou o login (desafio bloqueou o navegador). Renove a sessão por um navegador real.');
+            }
+        }
+
+        await Promise.all([
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }),
+            page.click('input[type="submit"], button[type="submit"]'),
+        ]);
+        console.log(`📍 [${acc.label}] URL após login:`, page.url());
+        if (page.url().includes('/login')) throw new Error('Login falhou — ainda na página de login (senha recusada?)');
+
+        // Conta com mais de uma clínica: o login cai em /establishments e é preciso escolher (POST /establishments/:id/select)
+        if (page.url().includes('/establishments')) {
+            const sel = acc.establishment
+                ? `form[action$="/establishments/${acc.establishment}/select"]`
+                : 'form[action$="/select"]';
+            if (!(await page.locator(sel).count())) throw new Error(`Clínica ${acc.establishment || '(primeira)'} não encontrada na seleção de clínicas`);
+            await Promise.all([
+                page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }),
+                page.locator(sel).first().evaluate(f => f.requestSubmit()),
+            ]);
+            console.log(`🏥 [${acc.label}] Clínica selecionada:`, page.url());
+        }
+
+        const csrf = await page.evaluate(() => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+        if (!csrf) throw new Error('CSRF não encontrado no HTML após login');
+
+        const cookies = await context.cookies();
+        const cookie = cookies
+            .filter(c => essential.some(name => c.name === name) || c.domain.includes('codental'))
+            .map(c => `${c.name}=${c.value}`)
+            .join('; ');
+        console.log(`🍪 [${acc.label}] Cookies:`, cookies.map(c => c.name).filter(n => essential.includes(n)).join(', '));
+        return { cookie, csrf };
+    } finally {
+        await context.close();
+    }
+}
+
+let browser;
+let failed = false;
 try {
     console.log('🌐 Iniciando browser...');
-    // Turnstile (Codental, out/2026) só libera o token para navegador com janela e sem a marca de automação:
-    // headless=false (no Actions roda sob xvfb-run), AutomationControlled desligado e o User-Agent real do
-    // Chromium (um UA de Windows rodando em Linux é sinal de bot, por isso não é mais forçado).
-    browser = await chromium.launch({
-        headless: false,
-        args: ['--disable-blink-features=AutomationControlled'],
-    });
-    const context = await browser.newContext({
-        locale: 'pt-BR',
-        timezoneId: 'America/Sao_Paulo',
-        viewport: { width: 1366, height: 768 },
-    });
-    const page = await context.newPage();
-
-    // 1. Abre página de login
-    console.log('🔐 Abrindo login...');
-    await page.goto('https://app.codental.com.br/login', { waitUntil: 'domcontentloaded' });
-
-    // 2. Preenche credenciais
-    await page.fill('input[name="professional[email]"]', EMAIL);
-    await page.fill('input[name="professional[password]"]', PASSWORD);
-
-    // 2b. Turnstile (out/2026): o formulário só é aceito com o campo cf-turnstile-response preenchido
-    if (await page.locator('[data-turnstile-form], input[name="cf-turnstile-response"]').count()) {
-        try {
-            await page.waitForFunction(
-                () => document.querySelector('input[name="cf-turnstile-response"]')?.value,
-                null, { timeout: 60000 });
-        } catch {
-            throw new Error('Turnstile não liberou o login (desafio bloqueou o navegador headless). Renove a sessão por um navegador real.');
-        }
-    }
-
-    // 3. Submete e aguarda navegação
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }),
-        page.click('input[type="submit"], button[type="submit"]'),
-    ]);
-
-    console.log('📍 URL após login:', page.url());
-
-    // 4. Garante que está numa página autenticada
-    if (page.url().includes('/login')) {
-        throw new Error('Login falhou — ainda na página de login');
-    }
-
-    // 5. Captura CSRF do meta tag
-    const csrf = await page.evaluate(() => {
-        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    });
-
-    if (!csrf) throw new Error('CSRF não encontrado no HTML após login');
-    console.log('🔑 CSRF capturado:', csrf.slice(0, 20) + '...');
-
-    // 6. Captura todos os cookies
-    const cookies = await context.cookies();
-    const essential = ['_domain_session', 'remember_professional_token', 'logged_in', 'selected_establishment'];
-    const cookieStr = cookies
-        .filter(c => essential.some(name => c.name === name) || c.domain.includes('codental'))
-        .map(c => `${c.name}=${c.value}`)
-        .join('; ');
-
-    console.log('🍪 Cookies capturados:', cookies.map(c => c.name).filter(n => essential.includes(n)).join(', '));
-
-    // 7. Salva no MongoDB
+    browser = await chromium.launch({ headless: false, args: ['--disable-blink-features=AutomationControlled'] });
     await client.connect();
     const col = client.db('codental_monitor').collection('settings');
-    await col.updateOne(
-        { _id: 'codental_session' },
-        { $set: { cookie: cookieStr, csrf, saved_at: new Date() } },
-        { upsert: true }
-    );
 
-    console.log('💾 Sessão salva no MongoDB com sucesso!');
-    console.log(`✅ Próxima renovação em ~30 minutos`);
-
+    for (const acc of ACCOUNTS) {
+        if (!acc.email || !acc.password) { console.log(`⏭️  [${acc.label}] sem credenciais, pulando`); continue; }
+        try {
+            const s = await loginAccount(browser, acc);
+            await col.updateOne({ _id: acc.id }, { $set: { cookie: s.cookie, csrf: s.csrf, saved_at: new Date() } }, { upsert: true });
+            console.log(`💾 [${acc.label}] sessão salva no MongoDB`);
+        } catch (err) {
+            console.error(`❌ [${acc.label}] ${err.message}`);
+            if (acc.required) failed = true;
+        }
+    }
 } catch (err) {
     console.error('❌ Erro:', err.message);
-    process.exit(1);
+    failed = true;
 } finally {
     await browser?.close();
     await client.close();
 }
+process.exit(failed ? 1 : 0);

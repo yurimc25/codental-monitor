@@ -33,6 +33,9 @@ jobs:
           CODENTAL_EMAIL: ${{ secrets.CODENTAL_EMAIL }}
           CODENTAL_PASSWORD: ${{ secrets.CODENTAL_PASSWORD }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          CODENTAL_OLD_EMAIL: ${{ secrets.CODENTAL_OLD_EMAIL }}
+          CODENTAL_OLD_PASSWORD: ${{ secrets.CODENTAL_OLD_PASSWORD }}
+          CODENTAL_OLD_ESTABLISHMENT_ID: ${{ secrets.CODENTAL_OLD_ESTABLISHMENT_ID }}
         run: xvfb-run -a --server-args="-screen 0 1366x768x24" node .github/scripts/refresh-session.js
 
       - name: Auto-resolver pendências com prontuário 100% batido
