@@ -92,6 +92,24 @@ async function loginAccount(browser, acc) {
     }
 }
 
+// Entrega a sessão da conta principal ao Sistema de Gestão pela MESMA API que a extensão do Chrome usa
+// (POST /api/v1/session, autenticado por X-Gestao-Token). Só roda se GESTAO_URL e GESTAO_TOKEN existirem;
+// falha aqui não derruba o job (o Mongo já foi gravado e a extensão continua como reserva).
+async function pushToGestao(s) {
+    const url = (process.env.GESTAO_URL || '').replace(/\/+$/, ''), token = process.env.GESTAO_TOKEN || '';
+    if (!url || !token) return;
+    try {
+        const r = await fetch(`${url}/api/v1/session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Gestao-Token': token },
+            body: JSON.stringify({ provider: 'codental', data: { cookie: s.cookie, csrf: s.csrf }, meta: `refresh-session ${os.hostname()}` }),
+        });
+        console.log(r.ok ? '🔁 [principal] sessão enviada ao gestão' : `⚠️ gestão recusou a sessão (HTTP ${r.status})`);
+    } catch (e) {
+        console.warn('⚠️ não consegui enviar a sessão ao gestão:', e.message);
+    }
+}
+
 let browser;
 let failed = false;
 try {
@@ -111,6 +129,7 @@ try {
             await pool.updateOne({ _id: `${account}:${src}` }, { $set: { account, src, cookie: s.cookie, csrf: s.csrf, saved_at: now, last_ok_at: now } }, { upsert: true });
             await col.updateOne({ _id: acc.id }, { $set: { cookie: s.cookie, csrf: s.csrf, saved_at: now } }, { upsert: true }); // CRM WhatsApp lê este
             console.log(`💾 [${acc.label}] sessão salva no pool (${src})`);
+            if (account === 'main') await pushToGestao(s); // mesma porta da extensão: POST /api/v1/session
         } catch (err) {
             console.error(`❌ [${acc.label}] ${err.message}`);
             if (acc.required) failed = true;

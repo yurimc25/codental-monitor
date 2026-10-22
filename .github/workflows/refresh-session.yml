@@ -37,6 +37,8 @@ jobs:
           CODENTAL_OLD_EMAIL: ${{ secrets.CODENTAL_OLD_EMAIL }}
           CODENTAL_OLD_PASSWORD: ${{ secrets.CODENTAL_OLD_PASSWORD }}
           CODENTAL_OLD_ESTABLISHMENT_ID: ${{ secrets.CODENTAL_OLD_ESTABLISHMENT_ID }}
+          GESTAO_URL: ${{ secrets.GESTAO_URL }}
+          GESTAO_TOKEN: ${{ secrets.GESTAO_TOKEN }}
         run: xvfb-run -a --server-args="-screen 0 1366x768x24" node .github/scripts/refresh-session.js
 
       # Mostra o que a Cloudflare exibiu ao runner quando o login é bloqueado
