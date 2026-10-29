@@ -102,6 +102,17 @@ export default async function handler(req, res) {
         return res.status(r.ok ? 200 : 422).json({ ...r, account });
     }
 
+    // ── POST action=codental_session_get: entrega ao Sistema de Gestão a sessão do pool que está logada agora ──
+    // Só com a chave real (env API_KEY), nunca com as chaves fixas do código: a resposta é um cookie de login.
+    if (req.method === 'POST' && req.body?.action === 'codental_session_get') {
+        if (!process.env.API_KEY || key !== process.env.API_KEY) return res.status(403).json({ error: 'Use a chave API_KEY para buscar a sessão.' });
+        const { loadMainSession } = await import('../lib/codental.js');
+        const s = await loadMainSession();
+        if (!s) return res.status(404).json({ ok: false, error: 'Nenhuma sessão do Codental logada no pool.' });
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({ ok: true, cookie: s.cookie, csrf: s.csrf });
+    }
+
     const col = (await db()).collection('email_logs');
 
     // ── GET: busca contato do Google (telefone/CPF) por nome ───────────────────
