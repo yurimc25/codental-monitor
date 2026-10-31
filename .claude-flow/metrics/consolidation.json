@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-07T17:50:06.529Z",
+  "timestamp": "2026-10-31T18:48:01.683Z",
   "distillationEnabled": true,
   "patternsConsolidated": 0,
   "memoryCleaned": 0,
@@ -12,5 +12,20 @@
   "byProvenance": {},
   "namespaces": [],
   "dryRun": false,
-  "corrupt": false
+  "corrupt": false,
+  "skipped": "error: The module '\\\\?\\C:\\Users\\yurim\\AppData\\Local\\npm-cache\\_npx\\2ed56890c96f58f7\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 127. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).",
+  "stores": [
+    {
+      "dbPath": "C:\\Users\\yurim\\Desktop\\Programação\\Ferramentas de Automação\\Raios-x do Gmail\\.swarm\\memory.db",
+      "processed": 0,
+      "patterns": 0,
+      "skipped": "error: The module '\\\\?\\C:\\Users\\yurim\\AppData\\Local\\npm-cache\\_npx\\2ed56890c96f58f7\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 127. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`)."
+    },
+    {
+      "dbPath": "C:\\Users\\yurim\\Desktop\\Programação\\Ferramentas de Automação\\Raios-x do Gmail\\.swarm\\agentdb-memory.db",
+      "processed": 0,
+      "patterns": 0,
+      "skipped": "error: The module '\\\\?\\C:\\Users\\yurim\\AppData\\Local\\npm-cache\\_npx\\2ed56890c96f58f7\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 127. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`)."
+    }
+  ]
 }

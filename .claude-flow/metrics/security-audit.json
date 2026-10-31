@@ -1,12 +1,15 @@
 {
-  "timestamp": "2026-09-07T17:50:06.535Z",
+  "timestamp": "2026-10-31T18:48:01.488Z",
   "mode": "local",
+  "scanned": false,
   "checks": {
     "envFilesProtected": false,
     "gitIgnoreExists": true,
-    "noHardcodedSecrets": true
+    "noHardcodedSecrets": null
   },
-  "riskLevel": "low",
-  "recommendations": [],
-  "note": "Install Claude Code CLI for AI-powered security analysis"
+  "riskLevel": "unknown",
+  "recommendations": [
+    "No secret scan or code analysis was performed by the local fallback; install Claude Code CLI for AI-powered security analysis."
+  ],
+  "note": "Local fallback checks file presence only; it does not scan source contents."
 }

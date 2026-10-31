@@ -1207,3 +1207,187 @@
 [2026-09-07T19:46:52.481Z] [INFO] Stopped worker: backup
 [2026-09-07T19:46:52.481Z] [INFO] Stopped worker: harness
 [2026-09-07T19:46:52.522Z] [INFO] Daemon stopped
+[2026-10-31T17:06:00.579Z] [INFO] AI workers disabled (default) - all workers run local-only. Enable with `daemon start --headless`, daemon.aiWorkers.enabled=true in ~/.claude-flow/config.json (a project config cannot enable it), or RUFLO_DAEMON_AI_WORKERS=1 (#2661)
+[2026-10-31T17:06:00.586Z] [INFO] Scheduled map (interval: 900s, first run in 0s)
+[2026-10-31T17:06:00.586Z] [INFO] Scheduled audit (interval: 600s, first run in 120s)
+[2026-10-31T17:06:00.586Z] [INFO] Scheduled optimize (interval: 900s, first run in 240s)
+[2026-10-31T17:06:00.586Z] [INFO] Scheduled consolidate (interval: 1800s, first run in 360s)
+[2026-10-31T17:06:00.586Z] [INFO] Scheduled testgaps (interval: 1200s, first run in 480s)
+[2026-10-31T17:06:00.587Z] [INFO] Scheduled backup (interval: 86400s, first run in 600s)
+[2026-10-31T17:06:00.587Z] [INFO] Scheduled harness (interval: 21600s, first run in 720s)
+[2026-10-31T17:06:00.587Z] [INFO] Lifecycle monitor active (workspace-removal, ttl=43200s, idle=1800s)
+[2026-10-31T17:06:00.591Z] [INFO] Daemon started (PID: 28324, CPUs: 12, workers: 7, maxCpuLoad: 9.600000000000001, minFreeMemoryPercent: 10%)
+[2026-10-31T17:06:00.592Z] [INFO] Worker map deferred: Memory too low: 6.0% free
+[2026-10-31T17:08:00.631Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T17:08:00.637Z] [INFO] Worker audit completed in 13ms
+[2026-10-31T17:08:01.250Z] [INFO] Worker map deferred: Memory too low: 9.2% free
+[2026-10-31T17:08:31.252Z] [INFO] Worker map deferred: Memory too low: 3.0% free
+[2026-10-31T17:09:01.281Z] [INFO] Worker map deferred: Memory too low: 0.3% free
+[2026-10-31T17:09:31.355Z] [INFO] Starting worker: map (1/2 concurrent)
+[2026-10-31T17:09:31.378Z] [INFO] Worker map completed in 55ms
+[2026-10-31T17:10:00.610Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T17:10:00.612Z] [INFO] Worker optimize completed in 5ms
+[2026-10-31T17:12:00.608Z] [INFO] Worker consolidate deferred: Memory too low: 5.9% free
+[2026-10-31T17:14:00.614Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T17:14:00.623Z] [INFO] Worker testgaps completed in 18ms
+[2026-10-31T17:14:00.713Z] [INFO] Starting worker: consolidate (1/2 concurrent)
+[2026-10-31T17:14:00.783Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T17:14:00.784Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\agentdb-memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T17:14:00.784Z] [INFO] Consolidate worker: distillation skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T17:14:00.785Z] [INFO] Worker consolidate completed in 74ms
+[2026-10-31T17:16:00.605Z] [INFO] Starting worker: backup (1/2 concurrent)
+[2026-10-31T17:16:00.627Z] [INFO] Worker backup completed in 24ms
+[2026-10-31T17:18:00.600Z] [INFO] Worker harness deferred: Memory too low: 6.4% free
+[2026-10-31T17:18:01.251Z] [INFO] Worker audit deferred: Memory too low: 6.4% free
+[2026-10-31T17:21:00.613Z] [INFO] Worker map deferred: Memory too low: 8.9% free
+[2026-10-31T17:25:00.659Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T17:25:00.665Z] [INFO] Worker optimize completed in 19ms
+[2026-10-31T17:25:00.793Z] [INFO] Starting worker: harness (1/2 concurrent)
+[2026-10-31T17:25:00.820Z] [INFO] Worker harness completed in 28ms
+[2026-10-31T17:25:00.836Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T17:25:00.839Z] [INFO] Starting worker: map (2/2 concurrent)
+[2026-10-31T17:25:00.840Z] [INFO] Worker audit completed in 6ms
+[2026-10-31T17:25:00.842Z] [INFO] Worker map completed in 5ms
+[2026-10-31T17:28:01.255Z] [INFO] Worker audit deferred: Memory too low: 8.0% free
+[2026-10-31T17:34:00.723Z] [INFO] Worker testgaps deferred: Memory too low: 7.7% free
+[2026-10-31T17:36:00.622Z] [INFO] Worker map deferred: Memory too low: 7.3% free
+[2026-10-31T17:38:01.267Z] [INFO] Worker audit deferred: Memory too low: 8.2% free
+[2026-10-31T17:40:00.823Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T17:40:00.832Z] [INFO] Worker optimize completed in 33ms
+[2026-10-31T17:40:00.958Z] [INFO] Worker audit deferred: Memory too low: 9.5% free
+[2026-10-31T17:40:30.977Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T17:40:30.981Z] [INFO] Worker testgaps completed in 8ms
+[2026-10-31T17:40:31.023Z] [INFO] Starting worker: map (1/2 concurrent)
+[2026-10-31T17:40:31.026Z] [INFO] Starting worker: audit (2/2 concurrent)
+[2026-10-31T17:40:31.030Z] [INFO] Worker map completed in 10ms
+[2026-10-31T17:40:31.031Z] [INFO] Worker audit completed in 7ms
+[2026-10-31T17:40:31.053Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T17:40:31.054Z] [INFO] Worker audit completed in 6ms
+[2026-10-31T17:42:00.616Z] [INFO] Worker consolidate deferred: Memory too low: 8.8% free
+[2026-10-31T17:48:01.283Z] [INFO] Worker audit deferred: Memory too low: 9.1% free
+[2026-10-31T17:51:00.636Z] [INFO] Worker map deferred: Memory too low: 7.7% free
+[2026-10-31T17:54:00.745Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T17:54:00.755Z] [INFO] Worker testgaps completed in 13ms
+[2026-10-31T17:54:00.812Z] [INFO] Worker consolidate deferred: Memory too low: 9.6% free
+[2026-10-31T17:54:30.825Z] [INFO] Worker audit deferred: Memory too low: 4.8% free
+[2026-10-31T17:55:00.834Z] [INFO] Worker map deferred: Memory too low: 6.2% free
+[2026-10-31T17:55:00.958Z] [INFO] Worker optimize deferred: Memory too low: 6.2% free
+[2026-10-31T17:55:30.839Z] [INFO] Worker consolidate deferred: Memory too low: 6.7% free
+[2026-10-31T17:56:00.850Z] [INFO] Worker audit deferred: Memory too low: 7.8% free
+[2026-10-31T17:56:30.851Z] [INFO] Worker map deferred: Memory too low: 8.4% free
+[2026-10-31T17:57:00.860Z] [INFO] Worker optimize deferred: Memory too low: 7.8% free
+[2026-10-31T17:57:30.875Z] [INFO] Worker consolidate deferred: Memory too low: 8.2% free
+[2026-10-31T17:58:00.887Z] [INFO] Worker audit deferred: Memory too low: 7.2% free
+[2026-10-31T17:58:01.291Z] [INFO] Worker audit deferred: Memory too low: 7.2% free
+[2026-10-31T17:58:30.898Z] [INFO] Worker map deferred: Memory too low: 7.5% free
+[2026-10-31T17:59:00.912Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T17:59:00.915Z] [INFO] Worker optimize completed in 8ms
+[2026-10-31T17:59:00.943Z] [INFO] Starting worker: consolidate (1/2 concurrent)
+[2026-10-31T17:59:00.989Z] [INFO] Starting worker: audit (2/2 concurrent)
+[2026-10-31T17:59:00.992Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T17:59:00.992Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\agentdb-memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T17:59:00.993Z] [INFO] Consolidate worker: distillation skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T17:59:00.997Z] [INFO] Worker audit completed in 10ms
+[2026-10-31T17:59:00.999Z] [INFO] Worker consolidate completed in 57ms
+[2026-10-31T17:59:01.011Z] [INFO] Starting worker: audit (2/2 concurrent)
+[2026-10-31T17:59:01.013Z] [INFO] Starting worker: map (3/2 concurrent)
+[2026-10-31T17:59:01.015Z] [INFO] Worker audit completed in 5ms
+[2026-10-31T17:59:01.018Z] [INFO] Worker map completed in 6ms
+[2026-10-31T18:06:00.654Z] [INFO] Starting worker: map (1/2 concurrent)
+[2026-10-31T18:06:00.655Z] [INFO] Worker map completed in 4ms
+[2026-10-31T18:08:01.296Z] [INFO] Worker audit deferred: Memory too low: 9.8% free
+[2026-10-31T18:10:00.973Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T18:10:00.988Z] [INFO] Worker optimize completed in 20ms
+[2026-10-31T18:10:01.065Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T18:10:01.068Z] [INFO] Worker audit completed in 15ms
+[2026-10-31T18:12:00.629Z] [INFO] Worker consolidate deferred: Memory too low: 6.5% free
+[2026-10-31T18:14:00.815Z] [INFO] Worker testgaps deferred: Memory too low: 8.9% free
+[2026-10-31T18:18:01.314Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T18:18:01.315Z] [INFO] Worker audit completed in 14ms
+[2026-10-31T18:18:01.353Z] [INFO] Worker consolidate deferred: Memory too low: 10.0% free
+[2026-10-31T18:18:31.359Z] [INFO] Worker testgaps deferred: Memory too low: 9.8% free
+[2026-10-31T18:19:01.366Z] [INFO] Starting worker: consolidate (1/2 concurrent)
+[2026-10-31T18:19:01.398Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T18:19:01.399Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\agentdb-memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T18:19:01.399Z] [INFO] Consolidate worker: distillation skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T18:19:01.401Z] [INFO] Worker consolidate completed in 37ms
+[2026-10-31T18:19:01.415Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T18:19:01.417Z] [INFO] Worker testgaps completed in 3ms
+[2026-10-31T18:21:00.685Z] [INFO] Worker map deferred: Memory too low: 8.5% free
+[2026-10-31T18:25:01.066Z] [INFO] Worker optimize deferred: Memory too low: 9.8% free
+[2026-10-31T18:28:01.364Z] [INFO] Worker audit deferred: Memory too low: 9.6% free
+[2026-10-31T18:34:00.834Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T18:34:00.836Z] [INFO] Worker testgaps completed in 7ms
+[2026-10-31T18:34:00.921Z] [INFO] Starting worker: map (1/2 concurrent)
+[2026-10-31T18:34:00.923Z] [INFO] Worker map completed in 4ms
+[2026-10-31T18:34:00.944Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T18:34:00.946Z] [INFO] Starting worker: audit (2/2 concurrent)
+[2026-10-31T18:34:00.947Z] [INFO] Worker optimize completed in 5ms
+[2026-10-31T18:34:00.949Z] [INFO] Worker audit completed in 4ms
+[2026-10-31T18:36:00.698Z] [INFO] Worker map deferred: Memory too low: 7.2% free
+[2026-10-31T18:38:01.380Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T18:38:01.381Z] [INFO] Worker audit completed in 5ms
+[2026-10-31T18:38:01.395Z] [INFO] Starting worker: map (1/2 concurrent)
+[2026-10-31T18:38:01.396Z] [INFO] Worker map completed in 4ms
+[2026-10-31T18:40:01.079Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T18:40:01.080Z] [INFO] Worker optimize completed in 3ms
+[2026-10-31T18:42:00.645Z] [INFO] Worker consolidate deferred: Memory too low: 9.0% free
+[2026-10-31T18:48:01.484Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T18:48:01.495Z] [INFO] Worker audit completed in 86ms
+[2026-10-31T18:48:01.653Z] [INFO] Starting worker: consolidate (1/2 concurrent)
+[2026-10-31T18:48:01.682Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T18:48:01.682Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\agentdb-memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T18:48:01.682Z] [INFO] Consolidate worker: distillation skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T18:48:01.684Z] [INFO] Worker consolidate completed in 33ms
+[2026-10-31T18:51:00.708Z] [INFO] Worker map deferred: Memory too low: 5.5% free
+[2026-10-31T18:54:00.931Z] [INFO] Worker testgaps deferred: Memory too low: 9.1% free
+[2026-10-31T18:55:01.105Z] [INFO] Worker optimize deferred: Memory too low: 5.7% free
+[2026-10-31T18:58:01.661Z] [INFO] Worker audit deferred: Memory too low: 9.3% free

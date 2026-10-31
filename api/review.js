@@ -97,7 +97,8 @@ export default async function handler(req, res) {
     if (req.method === 'POST' && req.body?.action === 'codental_session') {
         const cookie = String(req.body.cookie || '').trim(), csrf = String(req.body.csrf || '').trim();
         const device = String(req.body.device || 'chrome').replace(/[^\w.-]/g, '').slice(0, 24) || 'chrome';
-        const account = accountForEstablishment(req.body.establishment);
+        // A extensão marca account:'old' quando a sessão é da conta antiga (outro usuário do Codental)
+        const account = req.body.account === 'old' ? 'old' : accountForEstablishment(req.body.establishment);
         const r = await saveSessionToPool(account, `ext-${device}`, { cookie, csrf });
         return res.status(r.ok ? 200 : 422).json({ ...r, account });
     }
