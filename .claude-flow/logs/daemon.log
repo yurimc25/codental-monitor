@@ -1391,3 +1391,55 @@ the module (for instance, using `npm rebuild` or `npm install`).)
 [2026-10-31T18:54:00.931Z] [INFO] Worker testgaps deferred: Memory too low: 9.1% free
 [2026-10-31T18:55:01.105Z] [INFO] Worker optimize deferred: Memory too low: 5.7% free
 [2026-10-31T18:58:01.661Z] [INFO] Worker audit deferred: Memory too low: 9.3% free
+[2026-10-31T19:06:00.712Z] [INFO] Worker map deferred: Memory too low: 5.3% free
+[2026-10-31T19:08:01.666Z] [INFO] Worker audit deferred: Memory too low: 7.2% free
+[2026-10-31T19:10:01.119Z] [INFO] Worker optimize deferred: Memory too low: 5.2% free
+[2026-10-31T19:12:00.655Z] [INFO] Worker consolidate deferred: Memory too low: 6.0% free
+[2026-10-31T19:14:00.968Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T19:14:00.976Z] [INFO] Worker testgaps completed in 32ms
+[2026-10-31T19:14:01.128Z] [INFO] Worker map deferred: Memory too low: 10.0% free
+[2026-10-31T19:14:31.141Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T19:14:31.142Z] [INFO] Worker testgaps completed in 4ms
+[2026-10-31T19:14:31.156Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T19:14:31.161Z] [INFO] Starting worker: audit (2/2 concurrent)
+[2026-10-31T19:14:31.165Z] [INFO] Worker optimize completed in 12ms
+[2026-10-31T19:14:31.168Z] [INFO] Worker audit completed in 8ms
+[2026-10-31T19:14:31.189Z] [INFO] Starting worker: map (2/2 concurrent)
+[2026-10-31T19:14:31.194Z] [INFO] Starting worker: audit (2/2 concurrent)
+[2026-10-31T19:14:31.194Z] [INFO] Worker map completed in 8ms
+[2026-10-31T19:14:31.196Z] [INFO] Worker audit completed in 4ms
+[2026-10-31T19:14:31.211Z] [INFO] Starting worker: optimize (2/2 concurrent)
+[2026-10-31T19:14:31.215Z] [INFO] Starting worker: consolidate (3/2 concurrent)
+[2026-10-31T19:14:31.244Z] [INFO] Worker optimize completed in 38ms
+[2026-10-31T19:14:31.247Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T19:14:31.247Z] [INFO] Consolidate worker: C:\Users\yurim\Desktop\Programação\Ferramentas de Automação\Raios-x do Gmail\.swarm\agentdb-memory.db skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T19:14:31.248Z] [INFO] Consolidate worker: distillation skipped (error: The module '\\?\C:\Users\yurim\AppData\Local\npm-cache\_npx\2ed56890c96f58f7\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).)
+[2026-10-31T19:14:31.249Z] [INFO] Worker consolidate completed in 37ms
+[2026-10-31T19:14:31.279Z] [INFO] Starting worker: map (2/2 concurrent)
+[2026-10-31T19:14:31.280Z] [INFO] Worker map completed in 2ms
+[2026-10-31T19:18:01.675Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T19:18:01.676Z] [INFO] Worker audit completed in 4ms
+[2026-10-31T19:21:00.718Z] [INFO] Starting worker: map (1/2 concurrent)
+[2026-10-31T19:21:00.721Z] [INFO] Worker map completed in 6ms
+[2026-10-31T19:25:01.151Z] [INFO] Worker optimize deferred: Memory too low: 1.1% free
+[2026-10-31T19:28:01.693Z] [INFO] Worker audit deferred: Memory too low: 7.7% free
+[2026-10-31T19:34:01.194Z] [INFO] Starting worker: testgaps (1/2 concurrent)
+[2026-10-31T19:34:01.198Z] [INFO] Worker testgaps completed in 29ms
+[2026-10-31T19:34:01.340Z] [INFO] Starting worker: optimize (1/2 concurrent)
+[2026-10-31T19:34:01.343Z] [INFO] Worker optimize completed in 6ms
+[2026-10-31T19:34:01.364Z] [INFO] Starting worker: audit (1/2 concurrent)
+[2026-10-31T19:34:01.365Z] [INFO] Worker audit completed in 3ms
+[2026-10-31T19:36:00.757Z] [INFO] Starting worker: map (1/2 concurrent)
+[2026-10-31T19:36:00.759Z] [INFO] Worker map completed in 6ms

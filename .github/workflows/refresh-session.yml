@@ -8,7 +8,7 @@ on:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 25  # inclui até 8 min por conta esperando o código respondido no WhatsApp
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +39,11 @@ jobs:
           CODENTAL_OLD_ESTABLISHMENT_ID: ${{ secrets.CODENTAL_OLD_ESTABLISHMENT_ID }}
           GESTAO_URL: ${{ secrets.GESTAO_URL }}
           GESTAO_TOKEN: ${{ secrets.GESTAO_TOKEN }}
+          # Verificação em duas etapas: o código do SMS é pedido por WhatsApp (Evolution API do CRM)
+          CODENTAL_2FA_PHONE: '6199611055'
+          EVOLUTION_URL: ${{ secrets.EVOLUTION_URL }}
+          EVOLUTION_KEY: ${{ secrets.EVOLUTION_KEY }}
+          EVOLUTION_INSTANCE: ${{ secrets.EVOLUTION_INSTANCE }}
         run: xvfb-run -a --server-args="-screen 0 1366x768x24" node .github/scripts/refresh-session.js
 
       # Mostra o que a Cloudflare exibiu ao runner quando o login é bloqueado

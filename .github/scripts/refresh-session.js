@@ -6,6 +6,7 @@
 import { chromium } from 'playwright';
 import { MongoClient } from 'mongodb';
 import os from 'os';
+import { handleTwoFactor } from './codental-2fa.js';
 
 const MONGO = process.env.MONGODB_URI;
 const ACCOUNTS = [
@@ -62,6 +63,9 @@ async function loginAccount(browser, acc) {
             page.click('input[type="submit"], button[type="submit"]'),
         ]);
         console.log(`📍 [${acc.label}] URL após login:`, page.url());
+        // Verificação em duas etapas (celular + código por SMS, pedido por WhatsApp)
+        await page.waitForTimeout(1500);
+        if (await handleTwoFactor(page, acc.label)) console.log(`📍 [${acc.label}] URL após verificação:`, page.url());
         if (page.url().includes('/login')) throw new Error('Login falhou — ainda na página de login (senha recusada?)');
 
         // Conta com mais de uma clínica: o login cai em /establishments e é preciso escolher (POST /establishments/:id/select)
@@ -110,6 +114,22 @@ async function pushToGestao(s) {
     }
 }
 
+/** Alguma sessão do pool dessa conta ainda está logada? (mesma checagem do lib/codental.js: search.json devolve JSON) */
+async function hasValidSession(client, account) {
+    const cands = await client.db('codental_monitor').collection('codental_sessions').find({ account }).sort({ last_ok_at: -1 }).limit(8).toArray();
+    for (const c of cands) {
+        if (!c.cookie || !c.csrf) continue;
+        try {
+            const r = await fetch('https://app.codental.com.br/patients/search.json?query=zzz', {
+                headers: { Cookie: c.cookie, 'X-CSRF-Token': c.csrf, 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+                redirect: 'manual', signal: AbortSignal.timeout(8000),
+            });
+            if (r.status === 200 && (r.headers.get('content-type') || '').includes('json')) return true;
+        } catch { /* próxima */ }
+    }
+    return false;
+}
+
 let browser;
 let failed = false;
 try {
@@ -120,6 +140,11 @@ try {
 
     for (const acc of ACCOUNTS) {
         if (!acc.email || !acc.password) { console.log(`⏭️  [${acc.label}] sem credenciais, pulando`); continue; }
+        // Cada login novo pede código por SMS (e uma mensagem no WhatsApp): só loga se nenhuma sessão guardada vale mais
+        if (!process.env.FORCE_LOGIN && await hasValidSession(client, acc.id === 'codental_old_session' ? 'old' : 'main')) {
+            console.log(`⏭️  [${acc.label}] sessão guardada ainda está logada, pulando`);
+            continue;
+        }
         try {
             const s = await loginAccount(browser, acc);
             if (!/_domain_session=/.test(s.cookie)) throw new Error('cookie sem _domain_session (login não concluiu)');

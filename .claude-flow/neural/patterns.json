@@ -397,8 +397,8 @@
       "durationMs": 13
     },
     "createdAt": 1793466481242,
-    "usageCount": 178,
-    "lastUsedAt": 1793472481692
+    "usageCount": 230,
+    "lastUsedAt": 1793475360766
   },
   {
     "id": "pattern-1793466571560-4jaf",
@@ -798,8 +798,8 @@
       "durationMs": 55
     },
     "createdAt": 1793466571560,
-    "usageCount": 178,
-    "lastUsedAt": 1793472481692
+    "usageCount": 258,
+    "lastUsedAt": 1793475360766
   },
   {
     "id": "pattern-1793466600627-flyn",
@@ -1199,8 +1199,8 @@
       "durationMs": 5
     },
     "createdAt": 1793466600627,
-    "usageCount": 216,
-    "lastUsedAt": 1793472481692
+    "usageCount": 317,
+    "lastUsedAt": 1793475360766
   },
   {
     "id": "pattern-1793466840702-ub50",
@@ -1600,8 +1600,8 @@
       "durationMs": 18
     },
     "createdAt": 1793466840702,
-    "usageCount": 66,
-    "lastUsedAt": 1793471881388
+    "usageCount": 103,
+    "lastUsedAt": 1793475360766
   },
   {
     "id": "pattern-1793466840794-ejct",
@@ -2001,8 +2001,8 @@
       "durationMs": 74
     },
     "createdAt": 1793466840794,
-    "usageCount": 137,
-    "lastUsedAt": 1793472481692
+    "usageCount": 194,
+    "lastUsedAt": 1793475360766
   },
   {
     "id": "pattern-1793466960637-zoam",
@@ -2402,8 +2402,8 @@
       "durationMs": 24
     },
     "createdAt": 1793466960637,
-    "usageCount": 126,
-    "lastUsedAt": 1793472481692
+    "usageCount": 174,
+    "lastUsedAt": 1793475360766
   },
   {
     "id": "pattern-1793467500831-14nu",
@@ -2803,7 +2803,7 @@
       "durationMs": 28
     },
     "createdAt": 1793467500831,
-    "usageCount": 332,
-    "lastUsedAt": 1793472481692
+    "usageCount": 512,
+    "lastUsedAt": 1793475360766
   }
 ]
